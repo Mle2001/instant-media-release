@@ -22,7 +22,7 @@ from database import media_db, MediaOutletResponse
 # =================== CONFIGURATION ===================
 
 # OpenAI Configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "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")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
 OPENAI_MAX_TOKENS = int(os.getenv("OPENAI_MAX_TOKENS", "4000"))
