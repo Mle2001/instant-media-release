@@ -1,0 +1,31 @@
+# Web Framework & Server
+fastapi
+uvicorn
+
+# Agno - The Agent Framework
+agno
+
+# OpenAI API Client
+openai
+
+# Database & ORM
+sqlalchemy
+chromadb
+pydantic
+pydantic-settings
+
+# Search Tool
+duckduckgo-search
+
+# NLP & Embeddings
+sentence-transformers
+
+# Logging
+loguru
+
+# Other Utilities
+python-dotenv
+aiohttp
+websockets
+
+reportlab

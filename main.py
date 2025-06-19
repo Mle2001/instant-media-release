@@ -22,8 +22,13 @@ import uvicorn
 from loguru import logger
 
 # Import our modules
-from database import media_db, init_database, UserRequestCreate, get_database
+# Import our modules
+from database import media_db, init_database, UserRequest, UserRequestCreate, get_database
 from agents import agent_system
+from services import ReportingService, StrategyOptimizerService # NEW: Import services
+
+# SQLAlchemy Session import
+from sqlalchemy.orm import Session
 
 # =================== CONFIGURATION ===================
 
@@ -394,7 +399,8 @@ async def get_chat_session(session_id: str):
 @app.post("/api/agents/process", response_model=ProcessingResponse)
 async def start_agent_processing(
     request: ProcessingRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_database) # NEW: Add DB dependency
 ):
     """Start AI agent processing in background"""
     try:
@@ -405,6 +411,16 @@ async def start_agent_processing(
         if not agent_system:
             raise HTTPException(status_code=503, detail="Agent system not available")
         
+        # Save user request to DB to get an ID
+        user_request = db.query(UserRequest).filter(UserRequest.session_id == request.session_id).first()
+        if not user_request:
+            user_request = UserRequest(session_id=request.session_id, status="processing")
+            db.add(user_request)
+        user_request.budget = request.budget
+        user_request.status = 'processing'
+        db.commit()
+        db.refresh(user_request)
+        
         # Convert chat answers to structured input
         user_input = _format_chat_data_to_text(request.user_data)
         
@@ -413,7 +429,8 @@ async def start_agent_processing(
             process_with_agents_background,
             request.session_id,
             user_input,
-            request.budget
+            request.budget,
+            user_request_id=user_request.id
         )
         
         logger.info(f"🤖 Agent processing started for session: {request.session_id}")
@@ -437,6 +454,48 @@ async def start_agent_processing(
             session_id=request.session_id,
             error=str(e)
         )
+
+async def process_report_and_learn_task(session_id: str, user_input: str, budget: float, user_request_id: int):
+    """
+    (NEW) This is the main background task that orchestrates the entire lifecycle:
+    1. Runs the agent system to get a strategy.
+    2. Generates a performance report based on the strategy.
+    3. Archives the strategy for future learning if it was successful.
+    """
+    db = next(get_database())
+    try:
+        # Step 1: Run the agent system
+        logger.info(f"BACKGROUND - STEP 1: Agent processing for session {session_id}")
+        agent_result = await agent_system.process_complete_request(user_input, budget, session_id)
+        
+        # Update DB with agent results
+        user_request = db.query(UserRequest).filter(UserRequest.id == user_request_id).first()
+        if user_request:
+            user_request.status = "completed"
+            user_request.completed_at = datetime.utcnow()
+            user_request.final_report_json = json.dumps(agent_result)
+            db.commit()
+            await notify_client(session_id, "processing_completed", agent_result) # Notify client
+        
+        # Step 2: Generate performance report
+        logger.info(f"BACKGROUND - STEP 2: Generating performance report for session {session_id}")
+        reporting_service = ReportingService(db)
+        report = await reporting_service.generate_performance_report(session_id)
+        if report:
+            await notify_client(session_id, "report_generated", {"report_url": report.report_url})
+        
+        # Step 3: Archive successful strategy
+        if report:
+            logger.info(f"BACKGROUND - STEP 3: Analyzing campaign for learning archival for session {session_id}")
+            optimizer_service = StrategyOptimizerService(db)
+            await optimizer_service.archive_successful_strategy(report)
+
+    except Exception as e:
+        logger.error(f"❌ Full-cycle background task failed for session {session_id}: {e}", exc_info=True)
+        await notify_client(session_id, "processing_error", {"error": str(e)})
+    finally:
+        db.close()
+
 
 async def process_with_agents_background(
     session_id: str,
@@ -720,7 +779,13 @@ try:
     app.mount("/static", StaticFiles(directory="static"), name="static")
 except RuntimeError:
     logger.warning("Static directory not found - skipping static file serving")
-
+# =================== NOTIFICATION FUNCTION ===================
+async def notify_client(session_id: str, message_type: str, data: Any):
+    if session_id in active_websockets:
+        try:
+            await active_websockets[session_id].send_text(json.dumps({"type": message_type, "data": data}))
+        except Exception as ws_error:
+            logger.warning(f"WebSocket notification failed: {ws_error}")
 # =================== MAIN RUNNER ===================
 
 def main():

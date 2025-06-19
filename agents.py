@@ -17,7 +17,8 @@ from agno.tools.duckduckgo import DuckDuckGoTools
 from pydantic import BaseModel, Field
 from loguru import logger
 
-from database import media_db, MediaOutletResponse
+from database import media_db, MediaOutletResponse, get_database, UserRequest
+from services import StrategyOptimizerService
 
 # =================== CONFIGURATION ===================
 
@@ -314,7 +315,7 @@ class InstantMediaReleaseAgents:
                 confidence_score=0.5
             )
     
-    async def find_matching_media(self, deps: AgentDependencies) -> List[MediaRecommendation]:
+    async def find_matching_media(self, deps: AgentDependencies, few_shot_examples: str) -> List[MediaRecommendation]:
         """Step 2: Intelligent media matching with vector search"""
         try:
             # Prepare search query from content analysis
@@ -375,7 +376,9 @@ class InstantMediaReleaseAgents:
             
             AVAILABLE MEDIA OPTIONS: {json.dumps(media_candidates[:10], indent=2)}
             
-            Select the top 5-8 media outlets that:
+            {few_shot_examples}
+            
+            Based on the analysis and LEARNING from past successful examples, select the top 5-8 media outlets.
             1. Best match the content topics and target audience
             2. Fit within the budget constraints
             3. Provide optimal reach and credibility
@@ -383,6 +386,7 @@ class InstantMediaReleaseAgents:
             5. Have good success rates and reasonable response times
             
             Prioritize tier-1 outlets but include cost-effective tier-2 options.
+            Prioritize strategies that have led to high ROI in the past.
             Provide detailed reasoning for each recommendation.
             """
             
@@ -423,7 +427,7 @@ class InstantMediaReleaseAgents:
             logger.error(f"❌ Media matching failed: {e}")
             return []
     
-    async def optimize_pricing(self, deps: AgentDependencies, recommendations: List[MediaRecommendation]) -> PricingAnalysis:
+    async def optimize_pricing(self, deps: AgentDependencies, recommendations: List[MediaRecommendation], few_shot_examples: str) -> PricingAnalysis:
         """Step 3: Intelligent pricing optimization"""
         try:
             total_media_cost = sum(rec.cost_vnd for rec in recommendations)
@@ -441,6 +445,8 @@ class InstantMediaReleaseAgents:
                 "score": rec.matching_score,
                 "tier": rec.tier
             } for rec in recommendations]}
+            
+            {few_shot_examples}
             
             TOTAL MEDIA COSTS: {total_media_cost:,.0f} VND
             
@@ -552,7 +558,7 @@ class InstantMediaReleaseAgents:
         
         start_time = datetime.utcnow()
         logger.info(f"🚀 Processing complete request for session: {session_id}")
-        
+        db = next(get_database())
         try:
             # Initialize dependencies
             deps = AgentDependencies(
@@ -566,14 +572,26 @@ class InstantMediaReleaseAgents:
             content_analysis = await self.analyze_content(deps)
             deps.content_analysis = content_analysis
             
+            # NEW: Persist industry sector to DB for better matching later
+            user_request = db.query(UserRequest).filter(UserRequest.session_id == session_id).first()
+            if user_request:
+                user_request.industry_sector = content_analysis.industry_sector
+                db.commit()
+            # Step 1.5 (NEW): The Learning Step
+            logger.info("🧠 Step 1.5: Retrieving successful examples for learning...")
+            optimizer_service = StrategyOptimizerService(db)
+            few_shot_examples = await optimizer_service.get_few_shot_examples(
+                current_industry=content_analysis.industry_sector,
+                current_budget=budget
+            )
             # Step 2: Media Matching
             logger.info("🎯 Step 2: Media Matching")
-            recommendations = await self.find_matching_media(deps)
-            
+            recommendations = await self.find_matching_media(deps, few_shot_examples)
+
             # Step 3: Pricing Optimization
             logger.info("💰 Step 3: Pricing Optimization")
-            pricing = await self.optimize_pricing(deps, recommendations)
-            
+            pricing = await self.optimize_pricing(deps, recommendations, few_shot_examples)
+
             # Step 4: Executive Report
             logger.info("📋 Step 4: Executive Report")
             executive_report = await self.generate_executive_report(

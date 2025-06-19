@@ -11,13 +11,12 @@ from contextlib import asynccontextmanager
 
 import chromadb
 from sentence_transformers import SentenceTransformer
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, relationship
 from sqlalchemy.pool import StaticPool
 from pydantic import BaseModel, Field, ConfigDict
 from loguru import logger
-
 # =================== CONFIGURATION ===================
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./media_release.db")
 CHROMA_PERSIST_DIRECTORY = os.getenv("CHROMA_PERSIST_DIRECTORY", "./chroma_db")
@@ -97,11 +96,15 @@ class UserRequest(Base):
     budget = Column(Float)
     package_type = Column(String(50))  # Starter, Standard, Premium
     status = Column(String(50), default="pending", index=True)
+    industry_sector = Column(String(100), index=True, nullable=True)
     ai_processing_time = Column(Float)  # seconds
     recommendation_count = Column(Integer, default=0)
     total_estimated_cost = Column(Float)
+    final_report_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)
+    performance_report = relationship("PerformanceReport", back_populates="user_request", uselist=False, cascade="all, delete-orphan")
+    successful_strategy = relationship("SuccessfulStrategy", back_populates="source_request", uselist=False, cascade="all, delete-orphan")
 
 class AgentRecommendation(Base):
     """AI Agent Recommendations - Detailed tracking"""
@@ -171,6 +174,31 @@ class RecommendationResponse(BaseModel):
     cost: float
     priority_rank: int
 
+class PerformanceReport(Base):
+    """Model cho báo cáo hiệu suất."""
+    __tablename__ = 'performance_reports'
+    id = Column(Integer, primary_key=True, index=True)
+    user_request_id = Column(Integer, ForeignKey('user_requests.id'), unique=True, nullable=False)
+    total_reach = Column(Integer, default=0)
+    engagement_rate = Column(Float, default=0.0)
+    mentions_count = Column(Integer, default=0)
+    roi = Column(Float, default=0.0, index=True)
+    report_url = Column(String, nullable=True)
+    generated_at = Column(DateTime, default=datetime.utcnow)
+    user_request = relationship("UserRequest", back_populates="performance_report")
+
+class SuccessfulStrategy(Base):
+    """Model lưu trữ các chiến lược thành công cho Few-Shot Learning."""
+    __tablename__ = 'successful_strategies'
+    id = Column(Integer, primary_key=True, index=True)
+    source_request_id = Column(Integer, ForeignKey('user_requests.id'), nullable=False)
+    achieved_roi = Column(Float, nullable=False)
+    industry_sector = Column(String(100), index=True)
+    budget_range = Column(String(100), index=True)
+    few_shot_prompt_example = Column(Text, nullable=False)
+    full_strategy_json = Column(Text, nullable=False)
+    archived_at = Column(DateTime, default=datetime.utcnow)
+    source_request = relationship("UserRequest", back_populates="successful_strategy")
 # =================== VIETNAMESE MEDIA DATA ===================
 
 VIETNAMESE_MEDIA_DATA = [
