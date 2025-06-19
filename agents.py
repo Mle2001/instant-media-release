@@ -25,7 +25,7 @@ from document_processor import get_document_processor
 # =================== CONFIGURATION ===================
 
 # OpenAI Configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "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")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
 OPENAI_MAX_TOKENS = int(os.getenv("OPENAI_MAX_TOKENS", "4000"))

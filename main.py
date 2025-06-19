@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("Conversational agent system initialization failed")
     
     # Initialize document processor
-    openai_key = os.getenv("OPENAI_API_KEY", "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")
+    openai_key = os.getenv("OPENAI_API_KEY", "")
     if openai_key:
         doc_init_success = init_document_processor(openai_key)
         if doc_init_success:
