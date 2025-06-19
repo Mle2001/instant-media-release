@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instant Media Release - AI Chatbot Demo</title>
+    <title>Instant Media Release - AI Conversational Assistant</title>
     <style>
         * {
             margin: 0;
@@ -12,205 +12,639 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 10px;
         }
 
-        .container {
+        .chat-container {
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            border-radius: 24px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 800px;
-            height: 600px;
+            max-width: 900px;
+            height: 90vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            position: relative;
         }
 
-        .header {
+        .chat-header {
             background: linear-gradient(135deg, #ff6b6b, #ee5a24);
             color: white;
-            padding: 20px;
-            text-align: center;
+            padding: 20px 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
         }
 
-        .header h1 {
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 24px;
-            margin-bottom: 5px;
+            backdrop-filter: blur(10px);
         }
 
-        .header p {
+        .header-text h1 {
+            font-size: 20px;
+            margin-bottom: 2px;
+            font-weight: 600;
+        }
+
+        .header-text p {
+            font-size: 13px;
             opacity: 0.9;
-            font-size: 14px;
         }
 
-        .chat-area {
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            background: rgba(255,255,255,0.15);
+            padding: 6px 12px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .chat-messages {
             flex: 1;
-            padding: 20px;
+            padding: 25px;
             overflow-y: auto;
-            background: #f8f9fa;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
 
         .message {
-            margin-bottom: 15px;
             display: flex;
             align-items: flex-start;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+            max-width: 85%;
         }
 
-        .message.bot {
-            justify-content: flex-start;
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .message.user {
-            justify-content: flex-end;
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .message.bot .message-avatar {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
         }
 
         .message-content {
-            max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 18px;
-            word-wrap: break-word;
-        }
-
-        .message.bot .message-content {
-            background: #e3f2fd;
-            color: #1565c0;
-            border-bottom-left-radius: 5px;
+            background: white;
+            padding: 16px 20px;
+            border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: relative;
+            line-height: 1.5;
         }
 
         .message.user .message-content {
-            background: #ff6b6b;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
             color: white;
-            border-bottom-right-radius: 5px;
         }
 
-        .input-area {
+        .message-content::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            width: 0;
+            height: 0;
+            border: 8px solid transparent;
+        }
+
+        .message.bot .message-content::before {
+            left: -16px;
+            border-right-color: white;
+        }
+
+        .message.user .message-content::before {
+            right: -16px;
+            border-left-color: #ff6b6b;
+        }
+
+        .message-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .suggestion-btn {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .suggestion-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 10px 0;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .typing-indicator.show {
+            opacity: 1;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .progress-section {
+            background: linear-gradient(135deg, #e0f2fe, #f3e5f5);
+            border-radius: 16px;
             padding: 20px;
-            background: white;
-            border-top: 1px solid #eee;
+            margin: 10px 0;
+            display: none;
         }
 
-        .question-container {
+        .progress-section.show {
+            display: block;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        .progress-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 15px;
         }
 
-        .question {
+        .progress-title {
             font-weight: 600;
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .options {
+            color: #1e293b;
             display: flex;
-            flex-direction: column;
+            align-items: center;
             gap: 8px;
         }
 
-        .option-btn {
-            background: #fff;
-            border: 2px solid #e0e0e0;
-            padding: 12px 16px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: left;
-        }
-
-        .option-btn:hover {
-            border-color: #ff6b6b;
-            background: #fff5f5;
-        }
-
-        .option-btn.selected {
-            background: #ff6b6b;
-            color: white;
-            border-color: #ff6b6b;
-        }
-
-        .text-input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 25px;
+        .progress-percentage {
             font-size: 14px;
-            outline: none;
-            transition: border-color 0.3s ease;
-        }
-
-        .text-input:focus {
-            border-color: #ff6b6b;
-        }
-
-        .file-input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px dashed #e0e0e0;
-            border-radius: 10px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .file-input:hover {
-            border-color: #ff6b6b;
-            background: #fff5f5;
-        }
-
-        .submit-btn {
-            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-top: 15px;
-            transition: transform 0.2s ease;
-        }
-
-        .submit-btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .submit-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+            color: #64748b;
+            font-weight: 500;
         }
 
         .progress-bar {
-            background: #e0e0e0;
-            height: 4px;
-            border-radius: 2px;
+            background: rgba(255,255,255,0.7);
+            height: 8px;
+            border-radius: 4px;
             overflow: hidden;
-            margin: 10px 0;
+            margin-bottom: 10px;
         }
 
         .progress-fill {
-            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
             height: 100%;
-            transition: width 0.3s ease;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 4px;
         }
 
-        .status {
-            text-align: center;
+        .agent-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .agent-tag {
+            background: rgba(255,255,255,0.8);
+            color: #374151;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .agent-tag.active {
+            background: #10b981;
+            color: white;
+        }
+
+        .agent-tag.completed {
+            background: #64748b;
+            color: white;
+        }
+
+        .chat-input-container {
+            padding: 20px 25px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .file-upload-area {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
             padding: 20px;
-            font-style: italic;
-            color: #666;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+            display: none;
         }
 
+        .file-upload-area.show {
+            display: block;
+        }
+
+        .file-upload-area:hover,
+        .file-upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: scale(1.02);
+        }
+
+        .file-upload-area.uploaded {
+            border-color: #10b981;
+            background: #ecfdf5;
+            color: #065f46;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            border: 2px solid #e2e8f0;
+            border-radius: 25px;
+            padding: 12px 20px;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s ease;
+            resize: none;
+            min-height: 48px;
+            max-height: 120px;
+            font-family: inherit;
+            line-height: 1.4;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .send-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 18px;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .action-btn {
+            background: white;
+            border: 2px solid #e2e8f0;
+            color: #374151;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .action-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+            transform: translateY(-1px);
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: #667eea;
+            color: white;
+        }
+
+        .action-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .results-container {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .results-header {
+            display: flex;
+            align-items: center;
+            justify-content: between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .results-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .media-recommendation {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .media-recommendation:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transform: translateY(-1px);
+        }
+
+        .media-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .media-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 15px;
+        }
+
+        .media-tier {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .media-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .modification-panel {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .modification-panel.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .modification-input {
+            width: 100%;
+            border: 2px solid #d97706;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+            margin: 10px 0;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+            border-left: 4px solid #dc2626;
+        }
+
+        .connection-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .connection-status.connected {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .connection-status.disconnected {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+            }
+
+            .chat-container {
+                height: 100vh;
+                border-radius: 0;
+                max-width: 100%;
+            }
+
+            .chat-header {
+                padding: 15px 20px;
+            }
+
+            .header-text h1 {
+                font-size: 18px;
+            }
+
+            .chat-messages {
+                padding: 15px;
+            }
+
+            .message {
+                max-width: 95%;
+            }
+
+            .message-content {
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+
+            .chat-input-container {
+                padding: 15px 20px;
+            }
+
+            .results-container {
+                margin: 10px 0;
+                padding: 15px;
+            }
+
+            .media-details {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading States */
         .loading {
             display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #ff6b6b;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f4f6;
+            border-top: 2px solid #667eea;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -220,423 +654,948 @@
             100% { transform: rotate(360deg); }
         }
 
-        .result-container {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 15px;
+        /* Scrollbar Styling */
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
         }
 
-        .result-section {
-            margin-bottom: 20px;
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f5f9;
         }
 
-        .result-title {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 10px;
-            padding-bottom: 5px;
-            border-bottom: 2px solid #ff6b6b;
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
         }
 
-        .media-recommendation {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            border-left: 4px solid #ff6b6b;
-        }
-
-        .multiple-choice {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .multiple-choice .option-btn {
-            flex: 0 0 auto;
-            font-size: 12px;
-            padding: 8px 12px;
-        }
-
-        @media (max-width: 600px) {
-            .container {
-                height: 100vh;
-                border-radius: 0;
-            }
-            
-            .message-content {
-                max-width: 85%;
-            }
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🚀 Instant Media Release</h1>
-            <p>AI-powered Press Release Automation - Demo Chatbot</p>
+    <div class="chat-container">
+        <!-- Chat Header -->
+        <div class="chat-header">
+            <div class="connection-status" id="connectionStatus">Connecting</div>
+            <div class="header-info">
+                <div class="avatar">🤖</div>
+                <div class="header-text">
+                    <h1>ChiCom AI Assistant</h1>
+                    <p>Chuyên gia tư vấn PR & truyền thông thông minh</p>
+                </div>
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span id="agentStatus">Sẵn sàng</span>
+            </div>
         </div>
 
-        <div class="chat-area" id="chatArea">
-            <div class="message bot">
-                <div class="message-content">
-                    Xin chào! Tôi là ChiCom AI Assistant. Tôi sẽ giúp bạn tạo chiến lược truyền thông với sức mạnh của AI. Hãy bắt đầu nhé! 🎯
+        <!-- Chat Messages Area -->
+        <div class="chat-messages" id="chatMessages">
+            <!-- Typing indicator -->
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="message-avatar">
+                    <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px;">🤖</div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">ChiCom AI đang suy nghĩ...</div>
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="input-area" id="inputArea">
-            <div class="status" id="status">
-                <div class="loading"></div> Đang khởi tạo phiên làm việc...
+        <!-- Progress Section -->
+        <div class="progress-section" id="progressSection">
+            <div class="progress-header">
+                <div class="progress-title">
+                    <span>🚀</span>
+                    <span id="progressTitle">AI Agents đang phân tích...</span>
+                </div>
+                <div class="progress-percentage" id="progressPercentage">0%</div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div class="agent-status" id="agentStatus">
+                <div class="agent-tag" id="contentAnalyst">📊 Content Analyst</div>
+                <div class="agent-tag" id="documentAnalyst">📄 Document Analyst</div>
+                <div class="agent-tag" id="mediaMatcher">🎯 Media Matcher</div>
+                <div class="agent-tag" id="pricingOptimizer">💰 Pricing Optimizer</div>
+                <div class="agent-tag" id="reportGenerator">📋 Report Generator</div>
+            </div>
+        </div>
+
+        <!-- Input Container -->
+        <div class="chat-input-container" id="inputContainer">
+            <!-- File Upload Area -->
+            <div class="file-upload-area" id="fileUploadArea">
+                <div style="font-size: 24px; margin-bottom: 8px;">📎</div>
+                <div style="font-weight: 600; margin-bottom: 4px;">Kéo thả file vào đây hoặc click để chọn</div>
+                <div style="font-size: 13px; color: #64748b;">Hỗ trợ: PDF, DOC, DOCX (tối đa 15MB)</div>
+                <input type="file" id="fileInput" style="display: none" accept=".pdf,.doc,.docx">
+            </div>
+
+            <!-- Modification Panel -->
+            <div class="modification-panel" id="modificationPanel">
+                <div style="font-weight: 600; margin-bottom: 8px; color: #92400e;">🔄 Điều chỉnh kế hoạch</div>
+                <textarea class="modification-input" id="modificationInput" placeholder="Mô tả thay đổi bạn muốn (ví dụ: tăng ngân sách, thêm báo công nghệ, thay đổi timeline...)"></textarea>
+                <div style="display: flex; gap: 8px;">
+                    <button class="action-btn primary" onclick="submitModification()">Gửi yêu cầu</button>
+                    <button class="action-btn" onclick="cancelModification()">Hủy</button>
+                </div>
+            </div>
+
+            <!-- Chat Input Row -->
+            <div class="input-row">
+                <textarea class="chat-input" id="chatInput" placeholder="Chia sẻ về dự án của bạn..." rows="1"></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                    <span>➤</span>
+                </button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons" id="actionButtons">
+                <!-- Dynamic buttons will be added here -->
             </div>
         </div>
     </div>
 
     <script>
-        class ChatbotDemo {
+        class ConversationalMediaRelease {
             constructor() {
                 this.sessionId = null;
-                this.currentQuestion = null;
-                this.currentAnswer = null;
                 this.websocket = null;
-                this.chatArea = document.getElementById('chatArea');
-                this.inputArea = document.getElementById('inputArea');
-                this.status = document.getElementById('status');
+                this.currentState = 'greeting';
+                this.currentPhase = 'idle';
+                this.isProcessing = false;
+                this.uploadedFiles = [];
                 
-                this.init();
+                this.initializeElements();
+                this.setupEventListeners();
+                this.startConversation();
             }
 
-            async init() {
-                try {
-                    await this.startSession();
-                } catch (error) {
-                    this.showError('Không thể kết nối đến server. Vui lòng thử lại!');
-                }
+            initializeElements() {
+                this.chatMessages = document.getElementById('chatMessages');
+                this.chatInput = document.getElementById('chatInput');
+                this.sendBtn = document.getElementById('sendBtn');
+                this.typingIndicator = document.getElementById('typingIndicator');
+                this.progressSection = document.getElementById('progressSection');
+                this.fileUploadArea = document.getElementById('fileUploadArea');
+                this.fileInput = document.getElementById('fileInput');
+                this.actionButtons = document.getElementById('actionButtons');
+                this.connectionStatus = document.getElementById('connectionStatus');
+                this.agentStatusEl = document.getElementById('agentStatus');
+                this.modificationPanel = document.getElementById('modificationPanel');
             }
 
-            async startSession() {
-                const response = await fetch('/api/chat/start', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'}
+            setupEventListeners() {
+                // Chat input events
+                this.chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
                 });
-                
-                if (!response.ok) throw new Error('Failed to start session');
-                
-                const data = await response.json();
-                this.sessionId = data.session_id;
-                this.showQuestion(data.question, data.progress);
-                this.connectWebSocket();
+
+                this.chatInput.addEventListener('input', () => {
+                    this.autoResizeTextarea();
+                });
+
+                // File upload events
+                this.fileUploadArea.addEventListener('click', () => {
+                    this.fileInput.click();
+                });
+
+                this.fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        this.handleFileUpload(e.target.files[0]);
+                    }
+                });
+
+                // Drag and drop
+                this.setupDragAndDrop();
+            }
+
+            setupDragAndDrop() {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    this.fileUploadArea.addEventListener(eventName, this.preventDefaults, false);
+                    document.body.addEventListener(eventName, this.preventDefaults, false);
+                });
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    this.fileUploadArea.addEventListener(eventName, () => {
+                        this.fileUploadArea.classList.add('dragover');
+                    }, false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    this.fileUploadArea.addEventListener(eventName, () => {
+                        this.fileUploadArea.classList.remove('dragover');
+                    }, false);
+                });
+
+                this.fileUploadArea.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.handleFileUpload(files[0]);
+                    }
+                }, false);
+            }
+
+            preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            autoResizeTextarea() {
+                this.chatInput.style.height = 'auto';
+                this.chatInput.style.height = Math.min(this.chatInput.scrollHeight, 120) + 'px';
+            }
+
+            async startConversation() {
+                try {
+                    this.showTyping();
+                    
+                    const response = await fetch('/api/chat/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to start conversation');
+                    }
+
+                    const data = await response.json();
+                    this.sessionId = data.session_id;
+                    this.currentState = data.state;
+                    this.currentPhase = data.phase;
+
+                    this.hideTyping();
+                    this.addMessage('bot', data.message, data.suggestions, data.options);
+                    this.updateActionButtons(data.options, data.can_proceed);
+                    this.connectWebSocket();
+
+                } catch (error) {
+                    this.hideTyping();
+                    this.showError('Không thể kết nối. Vui lòng tải lại trang!');
+                }
             }
 
             connectWebSocket() {
+                if (!this.sessionId) return;
+
                 const wsUrl = `ws://${window.location.host}/ws/${this.sessionId}`;
                 this.websocket = new WebSocket(wsUrl);
-                
+
+                this.websocket.onopen = () => {
+                    this.updateConnectionStatus('connected');
+                };
+
                 this.websocket.onmessage = (event) => {
                     const message = JSON.parse(event.data);
-                    if (message.type === 'agent_completed') {
-                        this.showAgentResult(message.data);
-                    }
+                    this.handleWebSocketMessage(message);
                 };
-                
+
                 this.websocket.onerror = () => {
-                    console.log('WebSocket error - continuing without real-time updates');
+                    this.updateConnectionStatus('disconnected');
+                };
+
+                this.websocket.onclose = () => {
+                    this.updateConnectionStatus('disconnected');
+                    // Try to reconnect after 3 seconds
+                    setTimeout(() => {
+                        if (this.sessionId) {
+                            this.connectWebSocket();
+                        }
+                    }, 3000);
                 };
             }
 
-            showQuestion(question, progress) {
-                this.currentQuestion = question;
-                
-                // Add bot message
-                this.addMessage('bot', question.question);
-                
-                // Create input interface
-                this.createQuestionInput(question);
-                
-                // Update progress
-                this.updateProgress(progress);
-            }
-
-            createQuestionInput(question) {
-                let inputHtml = '';
-                
-                if (question.type === 'choice') {
-                    inputHtml = `
-                        <div class="question-container">
-                            <div class="options">
-                                ${question.options.map((option, index) => 
-                                    `<div class="option-btn" onclick="chatbot.selectOption('${option}')">${option}</div>`
-                                ).join('')}
-                            </div>
-                        </div>
-                    `;
-                } else if (question.type === 'multiple_choice') {
-                    inputHtml = `
-                        <div class="question-container">
-                            <div class="multiple-choice">
-                                ${question.options.map((option, index) => 
-                                    `<div class="option-btn" onclick="chatbot.toggleMultipleOption(this, '${option}')">${option}</div>`
-                                ).join('')}
-                            </div>
-                            <button class="submit-btn" onclick="chatbot.submitMultipleChoice()">Tiếp tục</button>
-                        </div>
-                    `;
-                } else if (question.type === 'text') {
-                    inputHtml = `
-                        <div class="question-container">
-                            <textarea class="text-input" id="textAnswer" placeholder="${question.placeholder || 'Nhập câu trả lời...'}" rows="4"></textarea>
-                            <button class="submit-btn" onclick="chatbot.submitText()">Tiếp tục</button>
-                        </div>
-                    `;
-                } else if (question.type === 'file') {
-                    inputHtml = `
-                        <div class="question-container">
-                            <div class="file-input" onclick="document.getElementById('fileInput').click()">
-                                📎 Chọn file (tối đa ${question.max_size})
-                            </div>
-                            <input type="file" id="fileInput" style="display: none" onchange="chatbot.handleFile(this)">
-                            <button class="submit-btn" onclick="chatbot.submitFile()">Bỏ qua</button>
-                        </div>
-                    `;
-                }
-                
-                this.inputArea.innerHTML = inputHtml;
-            }
-
-            selectOption(option) {
-                this.currentAnswer = option;
-                this.submitAnswer();
-            }
-
-            toggleMultipleOption(element, option) {
-                element.classList.toggle('selected');
-                
-                if (!this.currentAnswer) this.currentAnswer = [];
-                
-                const index = this.currentAnswer.indexOf(option);
-                if (index > -1) {
-                    this.currentAnswer.splice(index, 1);
-                } else {
-                    this.currentAnswer.push(option);
+            handleWebSocketMessage(message) {
+                switch (message.type) {
+                    case 'connected':
+                        console.log('WebSocket connected');
+                        break;
+                    
+                    case 'workflow_progress':
+                    case 'progress_update':
+                        this.updateProgress(message.data);
+                        break;
+                    
+                    case 'workflow_completed':
+                        this.handleWorkflowCompletion(message.data);
+                        break;
+                    
+                    case 'workflow_error':
+                        this.hideProgress();
+                        this.showError(`Lỗi xử lý: ${message.error}`);
+                        break;
+                    
+                    case 'document_uploaded':
+                        this.handleDocumentUploaded(message.data);
+                        break;
+                    
+                    case 'modification_progress':
+                        this.updateProgress(message.data);
+                        break;
                 }
             }
 
-            submitMultipleChoice() {
-                if (!this.currentAnswer || this.currentAnswer.length === 0) {
-                    alert('Vui lòng chọn ít nhất một tùy chọn!');
-                    return;
-                }
-                this.submitAnswer();
-            }
+            async sendMessage() {
+                const message = this.chatInput.value.trim();
+                if (!message || this.isProcessing) return;
 
-            submitText() {
-                const textInput = document.getElementById('textAnswer');
-                this.currentAnswer = textInput.value.trim();
-                
-                if (!this.currentAnswer) {
-                    alert('Vui lòng nhập câu trả lời!');
-                    return;
-                }
-                
-                this.submitAnswer();
-            }
+                this.addMessage('user', message);
+                this.chatInput.value = '';
+                this.autoResizeTextarea();
+                this.setProcessing(true);
+                this.showTyping();
 
-            handleFile(input) {
-                if (input.files && input.files[0]) {
-                    this.currentAnswer = `File uploaded: ${input.files[0].name}`;
-                    document.querySelector('.file-input').innerHTML = `✅ ${input.files[0].name}`;
-                }
-            }
-
-            submitFile() {
-                this.currentAnswer = this.currentAnswer || 'Không có file';
-                this.submitAnswer();
-            }
-
-            async submitAnswer() {
-                if (!this.currentAnswer) return;
-                
-                // Show user's answer
-                this.addMessage('user', Array.isArray(this.currentAnswer) ? 
-                    this.currentAnswer.join(', ') : this.currentAnswer);
-                
-                // Show loading
-                this.inputArea.innerHTML = '<div class="status"><div class="loading"></div> Đang xử lý...</div>';
-                
                 try {
-                    const response = await fetch('/api/chat/answer', {
+                    const response = await fetch('/api/chat/continue', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            question_id: this.currentQuestion.id,
-                            answer: this.currentAnswer,
+                            session_id: this.sessionId,
+                            message: message
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to send message');
+                    }
+
+                    const data = await response.json();
+                    this.currentState = data.state;
+                    this.currentPhase = data.phase;
+
+                    this.hideTyping();
+                    this.addMessage('bot', data.message, data.suggestions, data.options);
+                    this.updateActionButtons(data.options, data.can_proceed);
+                    
+                    // Show file upload area if appropriate
+                    if (data.suggestions && data.suggestions.some(s => s.includes('tài liệu') || s.includes('file'))) {
+                        this.showFileUpload();
+                    }
+
+                    // Auto-trigger workflow if ready
+                    if (data.can_proceed && data.state === 'analyzing') {
+                        setTimeout(() => {
+                            this.triggerWorkflow();
+                        }, 1000);
+                    }
+
+                } catch (error) {
+                    this.hideTyping();
+                    this.showError('Lỗi kết nối. Vui lòng thử lại!');
+                } finally {
+                    this.setProcessing(false);
+                }
+            }
+
+            async triggerWorkflow() {
+                if (!this.sessionId || this.isProcessing) return;
+
+                this.setProcessing(true);
+                this.showProgress();
+                this.addMessage('bot', '🚀 Tuyệt! Tôi sẽ bắt đầu phân tích ngay. Bạn sẽ thấy tiến trình real-time nhé!');
+
+                try {
+                    const response = await fetch('/api/chat/trigger-workflow', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
                             session_id: this.sessionId
                         })
                     });
-                    
-                    const data = await response.json();
-                    
-                    if (data.completed) {
-                        this.handleCompletion(data);
-                    } else {
-                        this.showQuestion(data.question, data.progress);
+
+                    if (!response.ok) {
+                        throw new Error('Failed to trigger workflow');
                     }
+
+                    // The actual progress will come via WebSocket
                     
                 } catch (error) {
-                    this.showError('Lỗi kết nối. Vui lòng thử lại!');
+                    this.hideProgress();
+                    this.showError('Không thể bắt đầu phân tích. Vui lòng thử lại!');
+                    this.setProcessing(false);
                 }
-                
-                this.currentAnswer = null;
             }
 
-            async handleCompletion(data) {
-                this.addMessage('bot', '🎉 Hoàn thành thu thập thông tin! Đang khởi động AI Agents để phân tích...');
-                
-                // Start agent processing
+            async handleFileUpload(file) {
+                if (!file) return;
+
+                // Validate file
+                const maxSize = 15 * 1024 * 1024; // 15MB
+                if (file.size > maxSize) {
+                    this.showError('File quá lớn! Kích thước tối đa: 15MB');
+                    return;
+                }
+
+                const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+                if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx)$/i)) {
+                    this.showError('Định dạng không hỗ trợ! Chỉ chấp nhận: PDF, DOC, DOCX');
+                    return;
+                }
+
+                // Show upload progress
+                this.setFileUploadState('uploading');
+                this.addMessage('user', `📎 Đang tải lên: ${file.name}`);
+
                 try {
-                    const response = await fetch('/api/agents/process', {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('session_id', this.sessionId);
+
+                    const response = await fetch('/api/chat/upload', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            session_id: this.sessionId,
-                            user_data: data.collected_data,
-                            budget: 30000000
-                        })
+                        body: formData
                     });
-                    
-                    if (response.ok) {
-                        this.inputArea.innerHTML = `
-                            <div class="status">
-                                <div class="loading"></div> 
-                                AI Agents đang phân tích (2-3 phút)...<br>
-                                <small>Content → Media Matching → Pricing → Report</small>
-                            </div>
-                        `;
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.setFileUploadState('uploaded');
+                        this.uploadedFiles.push({
+                            name: file.name,
+                            size: result.size,
+                            preview: result.preview
+                        });
                         
-                        // Polling for result
-                        this.pollForResult();
+                        this.addMessage('bot', `✅ Đã tải lên "${file.name}" thành công! AI sẽ phân tích tài liệu này để tối ưu chiến lược truyền thông.`);
+                        
+                        // Show preview if available
+                        if (result.preview) {
+                            this.showDocumentPreview(result.preview, file.name);
+                        }
                     } else {
-                        throw new Error('Failed to start agent processing');
+                        this.setFileUploadState('error');
+                        this.showError(`Lỗi tải file: ${result.error}`);
                     }
+
                 } catch (error) {
-                    this.showError('Không thể khởi động AI Agents. Vui lòng thử lại!');
+                    this.setFileUploadState('error');
+                    this.showError('Lỗi tải file. Vui lòng thử lại!');
                 }
             }
 
-            async pollForResult() {
-                const maxAttempts = 40; // 2 minutes max
-                let attempts = 0;
-                
-                const poll = async () => {
-                    try {
-                        const response = await fetch(`/api/agents/result/${this.sessionId}`);
-                        const data = await response.json();
-                        
-                        if (data.status === 'completed') {
-                            this.showAgentResult(data.result);
-                        } else if (data.status === 'error') {
-                            this.showError(`AI Error: ${data.error}`);
-                        } else if (attempts < maxAttempts) {
-                            attempts++;
-                            setTimeout(poll, 3000); // Poll every 3 seconds
-                        } else {
-                            this.showError('Timeout: AI processing took too long');
-                        }
-                    } catch (error) {
-                        this.showError('Polling error: ' + error.message);
-                    }
-                };
-                
-                poll();
-            }
-
-            showAgentResult(result) {
-                this.addMessage('bot', '✅ AI Agents đã hoàn thành phân tích! Đây là kết quả:');
-                
-                const resultHtml = `
-                    <div class="result-container">
-                        <div class="result-section">
-                            <div class="result-title">📊 Phân tích nội dung</div>
-                            <p><strong>Ngôn ngữ:</strong> ${result.content_analysis.language}</p>
-                            <p><strong>Chủ đề:</strong> ${result.content_analysis.topics.join(', ')}</p>
-                            <p><strong>Đối tượng:</strong> ${result.content_analysis.target_audience.join(', ')}</p>
+            showDocumentPreview(content, filename) {
+                const previewContent = `
+                    <div style="background: #f0f9ff; border-radius: 8px; padding: 12px; margin: 10px 0; border-left: 4px solid #0284c7;">
+                        <div style="font-weight: 600; color: #0369a1; margin-bottom: 8px;">📄 Xem trước: ${filename}</div>
+                        <div style="font-size: 13px; color: #475569; max-height: 100px; overflow: hidden;">
+                            ${content.substring(0, 300)}${content.length > 300 ? '...' : ''}
                         </div>
-                        
-                        <div class="result-section">
-                            <div class="result-title">🎯 Đề xuất báo chí</div>
-                            ${result.recommendations.map(rec => `
-                                <div class="media-recommendation">
-                                    <strong>${rec.media_name}</strong> (Score: ${rec.score.toFixed(2)})<br>
-                                    <small>${rec.reasoning}</small><br>
-                                    <small>💰 ${rec.cost.toLocaleString()} VND | 👥 ${rec.estimated_reach.toLocaleString()} độc giả</small>
-                                </div>
-                            `).join('')}
-                        </div>
-                        
-                        <div class="result-section">
-                            <div class="result-title">💰 Đề xuất gói dịch vụ</div>
-                            <p><strong>Gói:</strong> ${result.pricing.recommended_package}</p>
-                            <p><strong>Tổng chi phí:</strong> ${result.pricing.total_cost.toLocaleString()} VND</p>
-                            <p><strong>Thời gian:</strong> ${result.pricing.timeline}</p>
-                            <p><strong>ROI dự kiến:</strong> ${result.pricing.roi_projection}</p>
-                        </div>
-                        
-                        <div class="result-section">
-                            <div class="result-title">📋 Bước tiếp theo</div>
-                            ${result.final_report.next_steps.map(step => `<p>• ${step}</p>`).join('')}
+                        <div style="margin-top: 8px; font-size: 11px; color: #64748b;">
+                            💡 AI sẽ phân tích tài liệu này để tạo chiến lược tối ưu
                         </div>
                     </div>
                 `;
                 
-                this.inputArea.innerHTML = resultHtml;
-                this.addMessage('bot', 'Cảm ơn bạn đã sử dụng Instant Media Release! 🚀');
+                // Add to last bot message or create new one
+                const lastMessage = this.chatMessages.querySelector('.message.bot:last-of-type .message-content');
+                if (lastMessage) {
+                    lastMessage.innerHTML += previewContent;
+                }
             }
 
-            addMessage(type, content) {
+            addMessage(type, content, suggestions = [], options = []) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${type}`;
-                messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
-                this.chatArea.appendChild(messageDiv);
-                this.chatArea.scrollTop = this.chatArea.scrollHeight;
+                
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = 'message-avatar';
+                avatarDiv.textContent = type === 'bot' ? '🤖' : '👤';
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                contentDiv.innerHTML = content;
+                
+                // Add suggestions
+                if (suggestions && suggestions.length > 0) {
+                    const suggestionsDiv = document.createElement('div');
+                    suggestionsDiv.className = 'message-suggestions';
+                    
+                    suggestions.forEach(suggestion => {
+                        const btn = document.createElement('button');
+                        btn.className = 'suggestion-btn';
+                        btn.textContent = suggestion;
+                        btn.onclick = () => {
+                            this.chatInput.value = suggestion;
+                            this.sendMessage();
+                        };
+                        suggestionsDiv.appendChild(btn);
+                    });
+                    
+                    contentDiv.appendChild(suggestionsDiv);
+                }
+                
+                messageDiv.appendChild(avatarDiv);
+                messageDiv.appendChild(contentDiv);
+                
+                this.chatMessages.appendChild(messageDiv);
+                this.scrollToBottom();
             }
 
-            updateProgress(progress) {
-                const [current, total] = progress.split('/').map(Number);
-                const percentage = (current / total) * 100;
+            updateActionButtons(options = [], canProceed = false) {
+                this.actionButtons.innerHTML = '';
                 
-                const progressHtml = `
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${percentage}%"></div>
+                // Add workflow trigger button if ready
+                if (canProceed && this.currentState !== 'executing') {
+                    const workflowBtn = document.createElement('button');
+                    workflowBtn.className = 'action-btn primary';
+                    workflowBtn.textContent = '🚀 Bắt đầu phân tích AI';
+                    workflowBtn.onclick = () => this.triggerWorkflow();
+                    this.actionButtons.appendChild(workflowBtn);
+                }
+                
+                // Add file upload button
+                if (this.currentState === 'gathering_info' || this.currentState === 'analyzing') {
+                    const fileBtn = document.createElement('button');
+                    fileBtn.className = 'action-btn';
+                    fileBtn.textContent = '📎 Tải tài liệu';
+                    fileBtn.onclick = () => this.toggleFileUpload();
+                    this.actionButtons.appendChild(fileBtn);
+                }
+                
+                // Add modification button if in review state
+                if (this.currentState === 'reviewing') {
+                    const modifyBtn = document.createElement('button');
+                    modifyBtn.className = 'action-btn';
+                    modifyBtn.textContent = '🔄 Điều chỉnh kế hoạch';
+                    modifyBtn.onclick = () => this.showModificationPanel();
+                    this.actionButtons.appendChild(modifyBtn);
+                }
+                
+                // Add other option buttons
+                options.forEach(option => {
+                    const btn = document.createElement('button');
+                    btn.className = 'action-btn';
+                    btn.textContent = option;
+                    btn.onclick = () => {
+                        this.chatInput.value = option;
+                        this.sendMessage();
+                    };
+                    this.actionButtons.appendChild(btn);
+                });
+            }
+
+            showProgress() {
+                this.progressSection.classList.add('show');
+                this.updateProgress({
+                    step: 'Khởi tạo',
+                    message: 'Chuẩn bị phân tích...',
+                    completed: 0,
+                    total: 5,
+                    percentage: 0
+                });
+            }
+
+            hideProgress() {
+                this.progressSection.classList.remove('show');
+                this.setProcessing(false);
+            }
+
+            updateProgress(data) {
+                if (!data) return;
+                
+                const title = document.getElementById('progressTitle');
+                const percentage = document.getElementById('progressPercentage');
+                const fill = document.getElementById('progressFill');
+                
+                title.textContent = data.message || data.step;
+                percentage.textContent = `${Math.round(data.percentage || 0)}%`;
+                fill.style.width = `${data.percentage || 0}%`;
+                
+                // Update agent status
+                this.updateAgentStatus(data.step);
+                
+                // Update main status
+                this.agentStatusEl.textContent = data.message || 'Đang xử lý...';
+            }
+
+            updateAgentStatus(currentStep) {
+                const agents = {
+                    'Content Analysis': 'contentAnalyst',
+                    'Document Analysis': 'documentAnalyst', 
+                    'Media Matching': 'mediaMatcher',
+                    'Pricing Optimization': 'pricingOptimizer',
+                    'Report Generation': 'reportGenerator'
+                };
+                
+                // Reset all agents
+                Object.values(agents).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.className = 'agent-tag';
+                    }
+                });
+                
+                // Find current agent
+                for (const [step, agentId] of Object.entries(agents)) {
+                    const el = document.getElementById(agentId);
+                    if (el) {
+                        if (currentStep && currentStep.includes(step.split(' ')[0])) {
+                            el.className = 'agent-tag active';
+                            break;
+                        }
+                    }
+                }
+            }
+
+            handleWorkflowCompletion(data) {
+                this.hideProgress();
+                this.agentStatusEl.textContent = 'Hoàn thành';
+                
+                // Add completion message
+                this.addMessage('bot', data.message || '✅ Phân tích hoàn thành! Đây là kết quả chi tiết cho bạn:');
+                
+                // Show results
+                if (data.data) {
+                    this.displayResults(data.data);
+                }
+                
+                // Update action buttons for review state
+                this.currentState = 'reviewing';
+                this.updateActionButtons(data.options || [], true);
+            }
+
+            displayResults(results) {
+                const resultsHtml = this.generateResultsHTML(results);
+                
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'message bot';
+                resultDiv.innerHTML = `
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-content">
+                        <div class="results-container">
+                            ${resultsHtml}
+                        </div>
                     </div>
-                    <small>Tiến độ: ${progress}</small>
                 `;
                 
-                // Add progress to chat if not exists
-                let progressElement = document.querySelector('.progress-container');
-                if (!progressElement) {
-                    progressElement = document.createElement('div');
-                    progressElement.className = 'progress-container';
-                    this.chatArea.appendChild(progressElement);
+                this.chatMessages.appendChild(resultDiv);
+                this.scrollToBottom();
+            }
+
+            generateResultsHTML(results) {
+                let html = `
+                    <div class="results-header">
+                        <div class="results-title">
+                            <span>📊</span>
+                            <span>Kết quả phân tích AI</span>
+                        </div>
+                    </div>
+                `;
+                
+                // Content Analysis
+                if (results.content_analysis) {
+                    html += `
+                        <div class="result-section">
+                            <div class="section-title">
+                                <span>📈</span>
+                                <span>Phân tích nội dung</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 14px;">
+                                <div><strong>Ngôn ngữ:</strong> ${results.content_analysis.language}</div>
+                                <div><strong>Lĩnh vực:</strong> ${results.content_analysis.industry_sector}</div>
+                                <div><strong>Độ khẩn cấp:</strong> ${results.content_analysis.urgency_level}</div>
+                                <div><strong>Độ tin cậy:</strong> ${(results.content_analysis.confidence_score * 100).toFixed(0)}%</div>
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <strong>Chủ đề chính:</strong> ${results.content_analysis.primary_topics.join(', ')}
+                            </div>
+                            <div style="margin-top: 8px;">
+                                <strong>Đối tượng mục tiêu:</strong> ${results.content_analysis.target_audiences.join(', ')}
+                            </div>
+                        </div>
+                    `;
                 }
-                progressElement.innerHTML = progressHtml;
+                
+                // Document Analysis
+                if (results.document_analysis) {
+                    html += `
+                        <div class="result-section">
+                            <div class="section-title">
+                                <span>📄</span>
+                                <span>Phân tích tài liệu</span>
+                            </div>
+                            <div style="background: #f0f9ff; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                                <strong>Tóm tắt:</strong> ${results.document_analysis.document_summary}
+                            </div>
+                            <div style="margin-bottom: 8px;">
+                                <strong>Góc độ truyền thông:</strong><br>
+                                ${results.document_analysis.media_angles.map(angle => `• ${angle}`).join('<br>')}
+                            </div>
+                            <div>
+                                <strong>Chất lượng tài liệu:</strong> ${results.document_analysis.document_quality}
+                                <span style="margin-left: 10px;"><strong>Độ tin cậy:</strong> ${(results.document_analysis.confidence_score * 100).toFixed(0)}%</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Media Recommendations
+                if (results.media_recommendations && results.media_recommendations.length > 0) {
+                    html += `
+                        <div class="result-section">
+                            <div class="section-title">
+                                <span>🎯</span>
+                                <span>Đề xuất báo chí (Top ${results.media_recommendations.length})</span>
+                            </div>
+                    `;
+                    
+                    results.media_recommendations.forEach((rec, index) => {
+                        html += `
+                            <div class="media-recommendation">
+                                <div class="media-header">
+                                    <div class="media-name">#${index + 1} ${rec.media_name}</div>
+                                    <div class="media-tier">Tier ${rec.tier}</div>
+                                </div>
+                                <div style="font-size: 13px; color: #64748b; margin: 8px 0;">
+                                    ${rec.reasoning}
+                                </div>
+                                <div class="media-details">
+                                    <div>💰 ${rec.cost_vnd.toLocaleString()} VND</div>
+                                    <div>👥 ${rec.estimated_reach.toLocaleString()} độc giả</div>
+                                    <div>⭐ Score: ${rec.matching_score.toFixed(2)}</div>
+                                    <div>🌐 ${rec.language_match ? 'Phù hợp ngôn ngữ' : 'Khác ngôn ngữ'}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                }
+                
+                // Pricing Analysis
+                if (results.pricing_analysis) {
+                    html += `
+                        <div class="result-section">
+                            <div class="section-title">
+                                <span>💰</span>
+                                <span>Đề xuất gói dịch vụ</span>
+                            </div>
+                            <div style="background: linear-gradient(135deg, #ecfdf5, #f0fdf4); padding: 16px; border-radius: 12px; border-left: 4px solid #10b981;">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                                    <div><strong>Gói đề xuất:</strong> ${results.pricing_analysis.recommended_package}</div>
+                                    <div><strong>Tổng chi phí:</strong> ${results.pricing_analysis.total_cost_vnd.toLocaleString()} VND</div>
+                                    <div><strong>Timeline:</strong> ${results.pricing_analysis.timeline_days}</div>
+                                    <div><strong>Số báo:</strong> ${results.pricing_analysis.media_count} outlets</div>
+                                </div>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Chi phí gói:</strong> ${results.pricing_analysis.package_price_vnd.toLocaleString()} VND | 
+                                    <strong>Chi phí báo chí:</strong> ${results.pricing_analysis.media_costs_vnd.toLocaleString()} VND
+                                </div>
+                                <div style="margin-bottom: 8px;">
+                                    <strong>Sử dụng ngân sách:</strong> ${(results.pricing_analysis.budget_utilization * 100).toFixed(0)}%
+                                </div>
+                                <div>
+                                    <strong>ROI dự kiến:</strong> ${results.pricing_analysis.roi_projection}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Executive Summary
+                if (results.executive_report) {
+                    html += `
+                        <div class="result-section">
+                            <div class="section-title">
+                                <span>📋</span>
+                                <span>Kế hoạch thực hiện</span>
+                            </div>
+                            <div style="background: #fefce8; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #eab308;">
+                                <strong>Tóm tắt điều hành:</strong><br>
+                                <em>${results.executive_report.executive_summary}</em>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong>Các bước thực hiện:</strong><br>
+                                ${results.executive_report.implementation_steps.map((step, idx) => `${idx + 1}. ${step}`).join('<br>')}
+                            </div>
+                            <div>
+                                <strong>Chỉ số thành công (KPIs):</strong><br>
+                                ${results.executive_report.success_metrics.map(metric => `• ${metric}`).join('<br>')}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                return html;
+            }
+
+            showModificationPanel() {
+                this.modificationPanel.classList.add('show');
+                document.getElementById('modificationInput').focus();
+            }
+
+            async submitModification() {
+                const modification = document.getElementById('modificationInput').value.trim();
+                if (!modification) {
+                    alert('Vui lòng mô tả thay đổi bạn muốn!');
+                    return;
+                }
+
+                this.hideModificationPanel();
+                this.addMessage('user', `🔄 Yêu cầu điều chỉnh: ${modification}`);
+                this.showTyping();
+                this.setProcessing(true);
+
+                try {
+                    const response = await fetch('/api/chat/modify-plan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            session_id: this.sessionId,
+                            modification_request: modification
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to modify plan');
+                    }
+
+                    const data = await response.json();
+                    this.hideTyping();
+                    this.addMessage('bot', data.message, data.suggestions, data.options);
+                    this.updateActionButtons(data.options, data.can_proceed);
+
+                } catch (error) {
+                    this.hideTyping();
+                    this.showError('Lỗi điều chỉnh kế hoạch. Vui lòng thử lại!');
+                } finally {
+                    this.setProcessing(false);
+                }
+            }
+
+            cancelModification() {
+                this.hideModificationPanel();
+                document.getElementById('modificationInput').value = '';
+            }
+
+            hideModificationPanel() {
+                this.modificationPanel.classList.remove('show');
+            }
+
+            toggleFileUpload() {
+                const isVisible = this.fileUploadArea.classList.contains('show');
+                if (isVisible) {
+                    this.fileUploadArea.classList.remove('show');
+                } else {
+                    this.showFileUpload();
+                }
+            }
+
+            showFileUpload() {
+                this.fileUploadArea.classList.add('show');
+            }
+
+            setFileUploadState(state) {
+                this.fileUploadArea.className = 'file-upload-area show';
+                
+                const icon = this.fileUploadArea.querySelector('div:first-child');
+                const title = this.fileUploadArea.querySelector('div:nth-child(2)');
+                const subtitle = this.fileUploadArea.querySelector('div:nth-child(3)');
+                
+                switch (state) {
+                    case 'uploading':
+                        icon.textContent = '⏳';
+                        title.textContent = 'Đang tải lên...';
+                        subtitle.textContent = 'Vui lòng chờ';
+                        break;
+                    case 'uploaded':
+                        this.fileUploadArea.classList.add('uploaded');
+                        icon.textContent = '✅';
+                        title.textContent = 'Tải lên thành công!';
+                        subtitle.textContent = 'Tài liệu đã được AI phân tích';
+                        break;
+                    case 'error':
+                        icon.textContent = '❌';
+                        title.textContent = 'Lỗi tải lên';
+                        subtitle.textContent = 'Vui lòng thử lại';
+                        break;
+                }
+            }
+
+            showTyping() {
+                this.typingIndicator.classList.add('show');
+                this.scrollToBottom();
+            }
+
+            hideTyping() {
+                this.typingIndicator.classList.remove('show');
+            }
+
+            setProcessing(processing) {
+                this.isProcessing = processing;
+                this.sendBtn.disabled = processing;
+                this.chatInput.disabled = processing;
+                
+                if (processing) {
+                    this.sendBtn.innerHTML = '<div class="loading"></div>';
+                } else {
+                    this.sendBtn.innerHTML = '<span>➤</span>';
+                }
             }
 
             showError(message) {
-                this.addMessage('bot', `❌ ${message}`);
-                this.inputArea.innerHTML = `
-                    <div class="status" style="color: #e74c3c;">
-                        ${message}
-                        <button class="submit-btn" onclick="location.reload()">Thử lại</button>
-                    </div>
-                `;
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = message;
+                
+                this.chatMessages.appendChild(errorDiv);
+                this.scrollToBottom();
+                
+                // Auto remove after 5 seconds
+                setTimeout(() => {
+                    if (errorDiv.parentNode) {
+                        errorDiv.remove();
+                    }
+                }, 5000);
+            }
+
+            updateConnectionStatus(status) {
+                this.connectionStatus.className = `connection-status ${status}`;
+                this.connectionStatus.textContent = status === 'connected' ? 'Connected' : 'Disconnected';
+            }
+
+            scrollToBottom() {
+                setTimeout(() => {
+                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                }, 100);
             }
         }
 
-        // Initialize chatbot when page loads
-        let chatbot;
-        window.addEventListener('DOMContentLoaded', () => {
-            chatbot = new ChatbotDemo();
+        // Global functions for button handlers
+        function sendMessage() {
+            if (window.chatApp) {
+                window.chatApp.sendMessage();
+            }
+        }
+
+        function submitModification() {
+            if (window.chatApp) {
+                window.chatApp.submitModification();
+            }
+        }
+
+        function cancelModification() {
+            if (window.chatApp) {
+                window.chatApp.cancelModification();
+            }
+        }
+
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            window.chatApp = new ConversationalMediaRelease();
         });
     </script>
 </body>

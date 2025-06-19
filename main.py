@@ -1,29 +1,30 @@
 """
-Instant Media Release - Production FastAPI Server
-High-performance async API with Agno AI integration
+Instant Media Release - Conversational FastAPI Server
+High-performance async API with conversational AI agents and real-time interaction
+Enhanced with WebSocket progress updates and plan modification capabilities
 """
 
 import os
 import json
 import uuid
-import asyncio
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, Depends
+from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.security import HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 import uvicorn
 from loguru import logger
 
 # Import our modules
-from database import media_db, init_database, UserRequestCreate, get_database
-from agents import agent_system
+from database import media_db, init_database
+from agents import conversational_agent_system
+from document_processor import init_document_processor, get_document_processor
 
 # =================== CONFIGURATION ===================
 
@@ -41,9 +42,9 @@ class Settings(BaseSettings):
     cors_origins: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
     # API Configuration
-    api_title: str = "Instant Media Release API"
-    api_description: str = "AI-powered press release automation for Vietnamese SMEs"
-    api_version: str = "2.0.0"
+    api_title: str = "Instant Media Release Conversational API"
+    api_description: str = "AI-powered conversational press release automation for Vietnamese SMEs"
+    api_version: str = "3.0.0"
     
     # Performance
     max_concurrent_requests: int = 100
@@ -60,7 +61,7 @@ settings = Settings()
 async def lifespan(app: FastAPI):
     """Application lifecycle manager"""
     # Startup
-    logger.info("🚀 Starting Instant Media Release API...")
+    logger.info("🚀 Starting Instant Media Release Conversational API...")
     
     # Initialize database
     db_success = await init_database()
@@ -68,17 +69,28 @@ async def lifespan(app: FastAPI):
         logger.error("❌ Database initialization failed!")
         raise RuntimeError("Database initialization failed")
     
-    # Verify agent system
-    if not agent_system:
-        logger.error("❌ Agent system not available!")
-        raise RuntimeError("Agent system initialization failed")
+    # Verify conversational agent system
+    if not conversational_agent_system:
+        logger.error("❌ Conversational agent system not available!")
+        raise RuntimeError("Conversational agent system initialization failed")
     
-    logger.info("✅ API startup completed successfully!")
+    # Initialize document processor
+    openai_key = os.getenv("OPENAI_API_KEY", "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")
+    if openai_key:
+        doc_init_success = init_document_processor(openai_key)
+        if doc_init_success:
+            logger.info("✅ Document processor initialized")
+        else:
+            logger.warning("⚠️ Document processor initialization failed")
+    else:
+        logger.warning("⚠️ OPENAI_API_KEY not found - document processing disabled")
+    
+    logger.info("✅ Conversational API startup completed successfully!")
     
     yield
     
     # Shutdown
-    logger.info("🛑 Shutting down Instant Media Release API...")
+    logger.info("🛑 Shutting down Instant Media Release Conversational API...")
 
 # =================== FASTAPI APPLICATION ===================
 
@@ -105,43 +117,66 @@ app.add_middleware(
 
 # =================== PYDANTIC MODELS ===================
 
-class ChatSession(BaseModel):
-    """Chat session model"""
-    session_id: str
-    current_question: int = 1
-    answers: Dict[str, Any] = {}
-    status: str = "active"
-    started_at: datetime
-    completed_at: Optional[datetime] = None
+class ConversationStartRequest(BaseModel):
+    """Start conversation request"""
+    user_id: Optional[str] = None
+    initial_message: Optional[str] = None
 
-class ChatQuestion(BaseModel):
-    """Chat question model"""
-    id: int
-    question: str
-    type: str  # choice, multiple_choice, text, file
-    options: Optional[List[str]] = None
-    placeholder: Optional[str] = None
-    max_size: Optional[str] = None
-
-class UserAnswer(BaseModel):
-    """User answer model"""
-    question_id: int
-    answer: Any  # Can be string, list, etc.
+class ConversationContinueRequest(BaseModel):
+    """Continue conversation request"""
     session_id: str
-
-class ProcessingRequest(BaseModel):
-    """Agent processing request"""
+    message: str
+    
+class WorkflowTriggerRequest(BaseModel):
+    """Trigger workflow request"""
     session_id: str
-    user_data: Dict[str, Any]
-    budget: float = Field(default=30000000, description="Budget in VND")
+    force_start: bool = False
 
-class ProcessingResponse(BaseModel):
-    """Agent processing response"""
-    success: bool
+class PlanModificationRequest(BaseModel):
+    """Plan modification request"""
     session_id: str
-    data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    processing_time: Optional[float] = None
+    modification_request: str
+    
+class DocumentUploadRequest(BaseModel):
+    """Document upload request"""
+    session_id: str
+    
+class ConversationResponse(BaseModel):
+    """Conversation response"""
+    session_id: str
+    message: str
+    state: str
+    phase: str
+    suggestions: List[str] = []
+    options: List[str] = []
+    progress: Optional[Dict] = None
+    data: Optional[Dict] = None
+    requires_input: bool = True
+    can_proceed: bool = False
+    timestamp: datetime
+
+class WorkflowProgressResponse(BaseModel):
+    """Workflow progress response"""
+    session_id: str
+    step: str
+    message: str
+    completed: int
+    total: int
+    percentage: float
+    timestamp: datetime
+    data: Optional[Dict] = None
+
+class SessionInfoResponse(BaseModel):
+    """Session information response"""
+    session_id: str
+    state: str
+    phase: str
+    budget: float
+    message_count: int
+    workflow_started: bool
+    has_results: bool
+    created_at: datetime
+    updated_at: datetime
 
 class HealthResponse(BaseModel):
     """Health check response"""
@@ -150,74 +185,14 @@ class HealthResponse(BaseModel):
     version: str
     database_status: str
     agent_status: str
+    document_processor_status: str
+    active_sessions: int
 
 # =================== GLOBAL STATE ===================
 
-# In-memory storage (use Redis in production)
-chat_sessions: Dict[str, Dict] = {}
-processing_results: Dict[str, Dict] = {}
+# WebSocket connection management
 active_websockets: Dict[str, WebSocket] = {}
-
-# Chatbot conversation flow
-CHATBOT_QUESTIONS = [
-    {
-        "id": 1,
-        "question": "Xin chào! Tôi là ChiCom AI Assistant của Instant Media Release. Bạn đã có bài thông cáo báo chí sẵn sàng chưa?",
-        "type": "choice",
-        "options": ["Tôi có bản tiếng Việt", "Tôi có bản tiếng Anh", "Tôi chưa có, cần hỗ trợ viết"]
-    },
-    {
-        "id": 2,
-        "question": "Bạn có muốn phát triển thêm tài liệu hỗ trợ nào khác không?",
-        "type": "choice",
-        "options": ["Factsheet chi tiết", "Backgrounder", "Không cần thêm", "Theo đề xuất của chuyên gia", "Tài liệu khác"]
-    },
-    {
-        "id": 3,
-        "question": "Ngôn ngữ nào bạn muốn sử dụng cho chiến dịch truyền thông?",
-        "type": "choice",
-        "options": ["Chỉ tiếng Việt", "Chỉ tiếng Anh", "Song ngữ Việt-Anh", "Tùy theo từng báo"]
-    },
-    {
-        "id": 4,
-        "question": "Vui lòng mô tả chi tiết về dự án của bạn (bối cảnh, mục tiêu, đối tượng, sản phẩm/dịch vụ, thông điệp chính và kết quả mong đợi):",
-        "type": "text",
-        "placeholder": "Ví dụ: Công ty ABC vừa ra mắt ứng dụng fintech mới dành cho SME..."
-    },
-    {
-        "id": 5,
-        "question": "Nếu có, vui lòng đính kèm tài liệu bổ sung (tối đa 15MB):",
-        "type": "file",
-        "max_size": "15MB"
-    },
-    {
-        "id": 6,
-        "question": "Chọn các kênh truyền thông mong muốn (có thể chọn nhiều):",
-        "type": "multiple_choice",
-        "options": [
-            "Báo chí tổng hợp (VnExpress, VietnamNet)",
-            "Báo kinh doanh (CafeF, CafeBiz)",
-            "Báo công nghệ (ICTNews, VnReview)",
-            "Báo giải trí (Kenh14, ZNews)",
-            "Báo tiếng Anh (Vietnam News, VnExpress International)",
-            "Kênh truyền hình toàn quốc",
-            "Kênh truyền hình địa phương",
-            "Radio/Podcast"
-        ]
-    },
-    {
-        "id": 7,
-        "question": "Ngân sách dự kiến cho chiến dịch truyền thông này (VND)?",
-        "type": "choice",
-        "options": [
-            "Dưới 15 triệu (Gói Starter)",
-            "15-35 triệu (Gói Standard)",
-            "35-60 triệu (Gói Premium)",
-            "Trên 60 triệu (Gói Enterprise)",
-            "Chưa xác định, cần tư vấn"
-        ]
-    }
-]
+session_callbacks: Dict[str, List] = {}
 
 # =================== MIDDLEWARE ===================
 
@@ -248,19 +223,20 @@ async def logging_middleware(request, call_next):
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve demo chatbot interface"""
+    """Serve conversational demo interface"""
     try:
         return FileResponse("demo.html")
     except FileNotFoundError:
         return HTMLResponse("""
         <html>
-            <head><title>Instant Media Release API</title></head>
+            <head><title>Instant Media Release Conversational API</title></head>
             <body>
-                <h1>🚀 Instant Media Release API</h1>
-                <p>API is running successfully!</p>
+                <h1>🚀 Instant Media Release Conversational API</h1>
+                <p>API is running successfully with conversational capabilities!</p>
                 <ul>
                     <li><a href="/docs">API Documentation</a></li>
                     <li><a href="/health">Health Check</a></li>
+                    <li><strong>New:</strong> Conversational AI Interface</li>
                 </ul>
             </body>
         </html>
@@ -272,291 +248,419 @@ async def health_check():
     
     # Check database
     try:
-        media_outlets = await media_db.get_all_media_outlets()
-        db_status = f"OK - {len(media_outlets)} media outlets"
+        stats = await media_db.get_media_statistics()
+        db_status = f"OK - {stats.get('total_outlets', 0)} media outlets"
     except Exception as e:
         db_status = f"ERROR - {str(e)}"
     
-    # Check agent system
-    agent_status = "OK" if agent_system else "ERROR - Not initialized"
+    # Check conversational agent system
+    agent_status = "OK" if conversational_agent_system else "ERROR - Not initialized"
+    
+    # Check document processor
+    doc_processor = get_document_processor()
+    doc_status = "OK" if doc_processor else "WARNING - Not initialized"
+    
+    # Get active sessions count
+    active_sessions = len(conversational_agent_system.get_active_sessions()) if conversational_agent_system else 0
+    
+    overall_status = "healthy"
+    if "ERROR" in db_status or "ERROR" in agent_status:
+        overall_status = "degraded"
+    elif "WARNING" in doc_status:
+        overall_status = "partial"
     
     return HealthResponse(
-        status="healthy" if agent_system and "ERROR" not in db_status else "degraded",
+        status=overall_status,
         timestamp=datetime.utcnow(),
         version=settings.api_version,
         database_status=db_status,
-        agent_status=agent_status
+        agent_status=agent_status,
+        document_processor_status=doc_status,
+        active_sessions=active_sessions
     )
 
-# =================== CHATBOT ENDPOINTS ===================
+# =================== CONVERSATIONAL ENDPOINTS ===================
 
-@app.post("/api/chat/start")
-async def start_chat_session():
-    """Initialize new chatbot session"""
+@app.post("/api/chat/start", response_model=ConversationResponse)
+async def start_conversation(request: ConversationStartRequest):
+    """Start a new conversational session"""
     try:
+        if not conversational_agent_system:
+            raise HTTPException(status_code=503, detail="Conversational system not available")
+        
+        # Generate session ID
         session_id = str(uuid.uuid4())
         
-        chat_sessions[session_id] = {
-            "session_id": session_id,
-            "current_question": 1,
-            "answers": {},
-            "status": "active",
-            "started_at": datetime.utcnow()
-        }
+        logger.info(f"💬 Starting new conversation: {session_id}")
         
-        first_question = CHATBOT_QUESTIONS[0]
+        # Start conversation with AI agent
+        agent_response = await conversational_agent_system.start_conversation(session_id)
         
-        logger.info(f"💬 New chat session started: {session_id}")
+        response = ConversationResponse(
+            session_id=session_id,
+            message=agent_response.message,
+            state=agent_response.state,
+            phase=agent_response.phase,
+            suggestions=agent_response.suggestions,
+            options=agent_response.options,
+            progress=agent_response.progress,
+            data=agent_response.data,
+            requires_input=agent_response.requires_input,
+            can_proceed=agent_response.can_proceed,
+            timestamp=datetime.utcnow()
+        )
         
-        return {
-            "session_id": session_id,
-            "question": first_question,
-            "progress": f"1/{len(CHATBOT_QUESTIONS)}",
-            "total_questions": len(CHATBOT_QUESTIONS)
-        }
+        # Handle initial message if provided
+        if request.initial_message:
+            continue_response = await conversational_agent_system.continue_conversation(
+                session_id, 
+                request.initial_message
+            )
+            response.message = continue_response.message
+            response.state = continue_response.state
+            response.phase = continue_response.phase
+            response.suggestions = continue_response.suggestions
+            response.options = continue_response.options
+            response.can_proceed = continue_response.can_proceed
         
-    except Exception as e:
-        logger.error(f"❌ Failed to start chat session: {e}")
-        raise HTTPException(status_code=500, detail="Failed to start chat session")
-
-@app.post("/api/chat/answer")
-async def submit_chat_answer(answer: UserAnswer):
-    """Submit answer and get next question"""
-    try:
-        session = chat_sessions.get(answer.session_id)
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        # Save answer
-        session["answers"][str(answer.question_id)] = answer.answer
-        
-        # Get next question
-        next_question_id = answer.question_id + 1
-        
-        if next_question_id <= len(CHATBOT_QUESTIONS):
-            # More questions remaining
-            session["current_question"] = next_question_id
-            next_question = CHATBOT_QUESTIONS[next_question_id - 1]
-            
-            return {
-                "session_id": answer.session_id,
-                "question": next_question,
-                "progress": f"{next_question_id}/{len(CHATBOT_QUESTIONS)}",
-                "completed": False
-            }
-        else:
-            # All questions completed
-            session["status"] = "completed"
-            session["completed_at"] = datetime.utcnow()
-            
-            logger.info(f"✅ Chat session completed: {answer.session_id}")
-            
-            return {
-                "session_id": answer.session_id,
-                "completed": True,
-                "message": "Cảm ơn bạn! Đang khởi động AI Agents để phân tích yêu cầu...",
-                "collected_data": session["answers"],
-                "progress": f"{len(CHATBOT_QUESTIONS)}/{len(CHATBOT_QUESTIONS)}"
-            }
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Failed to submit answer: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process answer")
-
-@app.get("/api/chat/session/{session_id}")
-async def get_chat_session(session_id: str):
-    """Get current session status and data"""
-    try:
-        session = chat_sessions.get(session_id)
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        return {
-            "session_id": session_id,
-            "status": session["status"],
-            "current_question": session["current_question"],
-            "progress": f"{session['current_question']}/{len(CHATBOT_QUESTIONS)}",
-            "answers": session["answers"],
-            "started_at": session["started_at"],
-            "completed_at": session.get("completed_at")
-        }
+        logger.info(f"✅ Conversation started: {session_id}")
+        return response
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to get session: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve session")
+        logger.error(f"❌ Failed to start conversation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to start conversation")
 
-# =================== AI AGENTS ENDPOINTS ===================
+@app.post("/api/chat/continue", response_model=ConversationResponse)
+async def continue_conversation(request: ConversationContinueRequest):
+    """Continue an existing conversation"""
+    try:
+        if not conversational_agent_system:
+            raise HTTPException(status_code=503, detail="Conversational system not available")
+        
+        # Create progress callback for this request
+        async def progress_callback(progress_info):
+            # Send progress via WebSocket if connected
+            if request.session_id in active_websockets:
+                try:
+                    await active_websockets[request.session_id].send_text(json.dumps({
+                        "type": "progress_update",
+                        "data": progress_info
+                    }))
+                except:
+                    pass  # WebSocket might be disconnected
+        
+        # Continue conversation with agent
+        agent_response = await conversational_agent_system.continue_conversation(
+            request.session_id,
+            request.message,
+            progress_callback
+        )
+        
+        response = ConversationResponse(
+            session_id=request.session_id,
+            message=agent_response.message,
+            state=agent_response.state,
+            phase=agent_response.phase,
+            suggestions=agent_response.suggestions,
+            options=agent_response.options,
+            progress=agent_response.progress,
+            data=agent_response.data,
+            requires_input=agent_response.requires_input,
+            can_proceed=agent_response.can_proceed,
+            timestamp=datetime.utcnow()
+        )
+        
+        logger.info(f"💬 Conversation continued: {request.session_id} - State: {response.state}")
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to continue conversation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to continue conversation")
 
-@app.post("/api/agents/process", response_model=ProcessingResponse)
-async def start_agent_processing(
-    request: ProcessingRequest,
+@app.post("/api/chat/trigger-workflow")
+async def trigger_workflow(
+    request: WorkflowTriggerRequest,
     background_tasks: BackgroundTasks
 ):
-    """Start AI agent processing in background"""
+    """Trigger AI workflow for a conversation session"""
     try:
-        session = chat_sessions.get(request.session_id)
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+        if not conversational_agent_system:
+            raise HTTPException(status_code=503, detail="Conversational system not available")
         
-        if not agent_system:
-            raise HTTPException(status_code=503, detail="Agent system not available")
+        # Check if session exists
+        context = conversational_agent_system.get_conversation_context(request.session_id)
+        if not context:
+            raise HTTPException(status_code=404, detail="Conversation session not found")
         
-        # Convert chat answers to structured input
-        user_input = _format_chat_data_to_text(request.user_data)
+        # Create progress callback
+        async def progress_callback(progress_info):
+            # Send via WebSocket
+            if request.session_id in active_websockets:
+                try:
+                    await active_websockets[request.session_id].send_text(json.dumps({
+                        "type": "workflow_progress",
+                        "data": progress_info
+                    }))
+                except:
+                    pass
         
-        # Start background processing
+        # Start workflow in background
         background_tasks.add_task(
-            process_with_agents_background,
+            trigger_workflow_background,
             request.session_id,
-            user_input,
-            request.budget
+            progress_callback
         )
         
-        logger.info(f"🤖 Agent processing started for session: {request.session_id}")
-        
-        return ProcessingResponse(
-            success=True,
-            session_id=request.session_id,
-            data={
-                "message": "AI Agents processing started",
-                "estimated_time": "2-3 minutes",
-                "status": "processing"
-            }
-        )
+        return {
+            "session_id": request.session_id,
+            "message": "🚀 AI workflow started! You'll receive real-time updates.",
+            "status": "processing",
+            "estimated_time": "2-3 minutes"
+        }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to start agent processing: {e}")
-        return ProcessingResponse(
-            success=False,
-            session_id=request.session_id,
-            error=str(e)
-        )
+        logger.error(f"❌ Failed to trigger workflow: {e}")
+        raise HTTPException(status_code=500, detail="Failed to trigger workflow")
 
-async def process_with_agents_background(
-    session_id: str,
-    user_input: str,
-    budget: float
-):
-    """Background task for agent processing"""
+async def trigger_workflow_background(session_id: str, progress_callback):
+    """Background task for workflow execution"""
     try:
-        start_time = datetime.utcnow()
-        logger.info(f"🔄 Background agent processing started: {session_id}")
+        logger.info(f"🔄 Background workflow started: {session_id}")
         
-        # Process through agent system
-        result = await agent_system.process_complete_request(
-            user_input=user_input,
-            budget=budget,
-            session_id=session_id
+        # Execute workflow
+        response = await conversational_agent_system.trigger_workflow(
+            session_id,
+            progress_callback
         )
         
-        # Calculate processing time
-        processing_time = (datetime.utcnow() - start_time).total_seconds()
-        result["processing_time"] = processing_time
-        
-        # Store result
-        processing_results[session_id] = {
-            "status": "completed",
-            "result": result,
-            "completed_at": datetime.utcnow()
-        }
-        
-        # Update chat session
-        if session_id in chat_sessions:
-            chat_sessions[session_id]["agent_processing"] = "completed"
-            chat_sessions[session_id]["agent_result"] = result
-        
-        # Notify via WebSocket if connected
+        # Send completion via WebSocket
         if session_id in active_websockets:
             try:
                 await active_websockets[session_id].send_text(json.dumps({
-                    "type": "processing_completed",
-                    "data": result,
-                    "processing_time": processing_time
+                    "type": "workflow_completed",
+                    "data": {
+                        "message": response.message,
+                        "state": response.state,
+                        "phase": response.phase,
+                        "data": response.data,
+                        "options": response.options
+                    }
                 }))
             except Exception as ws_error:
                 logger.warning(f"WebSocket notification failed: {ws_error}")
         
-        logger.info(f"✅ Background processing completed: {session_id} ({processing_time:.2f}s)")
+        logger.info(f"✅ Background workflow completed: {session_id}")
         
     except Exception as e:
-        logger.error(f"❌ Background processing failed: {session_id} - {e}")
+        logger.error(f"❌ Background workflow failed: {session_id} - {e}")
         
-        # Store error result
-        processing_results[session_id] = {
-            "status": "error",
-            "error": str(e),
-            "completed_at": datetime.utcnow()
-        }
-        
-        # Notify error via WebSocket
+        # Send error via WebSocket
         if session_id in active_websockets:
             try:
                 await active_websockets[session_id].send_text(json.dumps({
-                    "type": "processing_error",
+                    "type": "workflow_error",
                     "error": str(e)
                 }))
             except:
                 pass
 
-@app.get("/api/agents/result/{session_id}")
-async def get_agent_result(session_id: str):
-    """Get agent processing result"""
+@app.post("/api/chat/modify-plan", response_model=ConversationResponse)
+async def modify_plan(request: PlanModificationRequest):
+    """Modify existing plan based on user feedback"""
     try:
-        # Check processing results
-        if session_id in processing_results:
-            result_data = processing_results[session_id]
-            return {
-                "session_id": session_id,
-                "status": result_data["status"],
-                "result": result_data.get("result"),
-                "error": result_data.get("error"),
-                "completed_at": result_data["completed_at"]
-            }
+        if not conversational_agent_system:
+            raise HTTPException(status_code=503, detail="Conversational system not available")
         
-        # Check chat session for inline results
-        session = chat_sessions.get(session_id)
-        if session and "agent_result" in session:
-            return {
-                "session_id": session_id,
-                "status": "completed",
-                "result": session["agent_result"]
-            }
+        # Create progress callback
+        async def progress_callback(progress_info):
+            if request.session_id in active_websockets:
+                try:
+                    await active_websockets[request.session_id].send_text(json.dumps({
+                        "type": "modification_progress",
+                        "data": progress_info
+                    }))
+                except:
+                    pass
         
-        # Still processing or not found
-        if session:
-            return {
-                "session_id": session_id,
-                "status": "processing",
-                "message": "AI Agents are still processing your request..."
-            }
+        # Execute plan modification
+        agent_response = await conversational_agent_system.modify_plan(
+            request.session_id,
+            request.modification_request,
+            progress_callback
+        )
+        
+        response = ConversationResponse(
+            session_id=request.session_id,
+            message=agent_response.message,
+            state=agent_response.state,
+            phase=agent_response.phase,
+            suggestions=agent_response.suggestions,
+            options=agent_response.options,
+            progress=agent_response.progress,
+            data=agent_response.data,
+            requires_input=agent_response.requires_input,
+            can_proceed=agent_response.can_proceed,
+            timestamp=datetime.utcnow()
+        )
+        
+        logger.info(f"🔄 Plan modification completed: {request.session_id}")
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to modify plan: {e}")
+        raise HTTPException(status_code=500, detail="Failed to modify plan")
+
+@app.get("/api/chat/session/{session_id}", response_model=SessionInfoResponse)
+async def get_session_info(session_id: str):
+    """Get detailed session information"""
+    try:
+        if not conversational_agent_system:
+            raise HTTPException(status_code=503, detail="Conversational system not available")
+        
+        context = conversational_agent_system.get_conversation_context(session_id)
+        if not context:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        return SessionInfoResponse(
+            session_id=session_id,
+            state=context.state.value,
+            phase=context.phase.value,
+            budget=context.budget,
+            message_count=len(context.conversation_history),
+            workflow_started=context.workflow_started,
+            has_results=bool(context.content_analysis or context.media_recommendations),
+            created_at=context.created_at,
+            updated_at=context.updated_at
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to get session info: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve session info")
+
+@app.delete("/api/chat/session/{session_id}")
+async def clear_session(session_id: str):
+    """Clear/end a conversation session"""
+    try:
+        if not conversational_agent_system:
+            raise HTTPException(status_code=503, detail="Conversational system not available")
+        
+        success = conversational_agent_system.clear_session(session_id)
+        
+        # Close WebSocket if connected
+        if session_id in active_websockets:
+            try:
+                await active_websockets[session_id].close()
+            except:
+                pass
+            del active_websockets[session_id]
+        
+        if success:
+            return {"message": "Session cleared successfully", "session_id": session_id}
         else:
             raise HTTPException(status_code=404, detail="Session not found")
             
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to get agent result: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve result")
+        logger.error(f"❌ Failed to clear session: {e}")
+        raise HTTPException(status_code=500, detail="Failed to clear session")
+
+# =================== DOCUMENT UPLOAD ENDPOINTS ===================
+
+@app.post("/api/chat/upload")
+async def upload_document_to_conversation(
+    session_id: str = Form(...),
+    file: UploadFile = File(...)
+):
+    """Upload document to conversation session"""
+    try:
+        # Get document processor
+        doc_processor = get_document_processor()
+        if not doc_processor:
+            raise HTTPException(status_code=503, detail="Document processing not available")
+        
+        # Validate session
+        if conversational_agent_system:
+            context = conversational_agent_system.get_conversation_context(session_id)
+            if not context:
+                raise HTTPException(status_code=404, detail="Conversation session not found")
+        
+        # Read file content
+        file_content = await file.read()
+        
+        # Process the file
+        result = await doc_processor.process_uploaded_file(
+            file_content=file_content,
+            filename=file.filename,
+            session_id=session_id
+        )
+        
+        if result["success"]:
+            # Notify via WebSocket
+            if session_id in active_websockets:
+                try:
+                    await active_websockets[session_id].send_text(json.dumps({
+                        "type": "document_uploaded",
+                        "data": {
+                            "filename": file.filename,
+                            "size": len(file_content),
+                            "preview": result.get("content", "")[:500]
+                        }
+                    }))
+                except:
+                    pass
+            
+            return {
+                "success": True,
+                "filename": file.filename,
+                "size": len(file_content),
+                "message": "Document uploaded and analyzed successfully",
+                "preview": result.get("content", "")[:500]
+            }
+        else:
+            return {
+                "success": False,
+                "filename": file.filename,
+                "error": result["error"]
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Document upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Document upload failed")
 
 # =================== WEBSOCKET ENDPOINT ===================
 
 @app.websocket("/ws/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
-    """WebSocket for real-time updates"""
+    """Enhanced WebSocket for real-time conversation updates"""
     await websocket.accept()
     active_websockets[session_id] = websocket
     
     logger.info(f"🔌 WebSocket connected: {session_id}")
     
     try:
+        # Send welcome message
+        await websocket.send_text(json.dumps({
+            "type": "connected",
+            "session_id": session_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "message": "Real-time updates connected"
+        }))
+        
         while True:
-            # Keep connection alive with ping/pong
+            # Keep connection alive and handle client messages
             data = await websocket.receive_text()
             message = json.loads(data)
             
@@ -566,15 +670,22 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     "timestamp": datetime.utcnow().isoformat()
                 }))
             elif message.get("type") == "status_request":
-                # Send current status
-                status = "processing"
-                if session_id in processing_results:
-                    status = processing_results[session_id]["status"]
-                
-                await websocket.send_text(json.dumps({
-                    "type": "status_update",
-                    "status": status
-                }))
+                # Send current session status
+                if conversational_agent_system:
+                    context = conversational_agent_system.get_conversation_context(session_id)
+                    if context:
+                        await websocket.send_text(json.dumps({
+                            "type": "status_update",
+                            "data": {
+                                "state": context.state.value,
+                                "phase": context.phase.value,
+                                "workflow_started": context.workflow_started,
+                                "message_count": len(context.conversation_history)
+                            }
+                        }))
+            elif message.get("type") == "typing":
+                # Handle typing indicators (for future implementation)
+                pass
                 
     except WebSocketDisconnect:
         logger.info(f"🔌 WebSocket disconnected: {session_id}")
@@ -584,134 +695,219 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         if session_id in active_websockets:
             del active_websockets[session_id]
 
-# =================== UTILITY ENDPOINTS ===================
+# =================== MEDIA SEARCH ENDPOINTS ===================
 
 @app.get("/api/media/search")
-async def search_media_outlets(query: str, limit: int = 10):
-    """Search media outlets using vector similarity"""
+async def search_media_outlets(
+    query: str = None,
+    category: str = None,
+    tier: int = None,
+    min_visits: int = None,
+    max_cost: float = None,
+    language: str = None,
+    limit: int = 20
+):
+    """Advanced media outlet search"""
     try:
-        if not query.strip():
-            raise HTTPException(status_code=400, detail="Query cannot be empty")
-        
-        results = await media_db.search_media_by_vector(query, limit)
-        
-        return {
-            "query": query,
-            "results": results,
-            "count": len(results.get("documents", [[]])[0]) if results else 0
-        }
-        
-    except HTTPException:
-        raise
+        if query:
+            # Vector search
+            results = await media_db.search_media_by_vector(query, limit)
+            return {
+                "query": query,
+                "type": "vector_search",
+                "results": results,
+                "count": len(results.get("documents", [[]])[0]) if results else 0
+            }
+        else:
+            # Advanced filter search
+            media_outlets = await media_db.search_media_advanced(
+                category=category,
+                tier=tier,
+                min_visits=min_visits,
+                max_cost=max_cost,
+                language=language,
+                limit=limit
+            )
+            return {
+                "type": "filtered_search",
+                "filters": {
+                    "category": category,
+                    "tier": tier,
+                    "min_visits": min_visits,
+                    "max_cost": max_cost,
+                    "language": language
+                },
+                "results": [outlet.model_dump() for outlet in media_outlets],
+                "count": len(media_outlets)
+            }
+            
     except Exception as e:
         logger.error(f"❌ Media search failed: {e}")
-        raise HTTPException(status_code=500, detail="Search failed")
+        raise HTTPException(status_code=500, detail="Media search failed")
 
-@app.get("/api/media/list")
-async def list_all_media_outlets():
-    """Get all available media outlets"""
+@app.get("/api/media/categories")
+async def get_media_categories():
+    """Get all available media categories"""
     try:
-        media_outlets = await media_db.get_all_media_outlets()
+        from database import get_media_categories
+        categories = await get_media_categories()
         
         return {
-            "media_outlets": [outlet.model_dump() for outlet in media_outlets],
-            "count": len(media_outlets),
-            "last_updated": datetime.utcnow()
+            "categories": categories,
+            "count": len(categories),
+            "descriptions": {
+                "MAINSTREAM": "Báo tổng hợp lớn (VnExpress, 24H, Dân trí...)",
+                "BUSINESS": "Báo kinh doanh và tài chính (CafeF, CafeBiz...)", 
+                "TECHNOLOGY": "Báo công nghệ (Tinh tế, GenK...)",
+                "YOUTH_ENTERTAINMENT": "Báo giải trí và giới trẻ (Kenh14, SaoStar...)",
+                "HEALTH": "Báo sức khỏe",
+                "AUTOMOTIVE": "Báo ô tô và giao thông",
+                "EDUCATION": "Báo giáo dục",
+                "WOMAN_FAMILY": "Báo phụ nữ và gia đình",
+                "AGRICULTURE": "Báo nông nghiệp",
+                "TOURISM": "Báo du lịch"
+            }
         }
         
     except Exception as e:
-        logger.error(f"❌ Failed to list media outlets: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve media outlets")
+        logger.error(f"❌ Failed to get categories: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve categories")
 
-@app.post("/api/demo/quick-test")
-async def quick_demo_test():
-    """Quick demo endpoint for testing the complete system"""
+@app.get("/api/media/stats")
+async def get_media_statistics():
+    """Get comprehensive media database statistics"""
     try:
-        if not agent_system:
-            raise HTTPException(status_code=503, detail="Agent system not available")
-        
-        demo_input = """
-        Công ty VietTech Solutions vừa hoàn thành phát triển nền tảng VietPay - 
-        giải pháp thanh toán di động thế hệ mới dành riêng cho các doanh nghiệp SME tại Việt Nam.
-        
-        VietPay giúp các SME:
-        - Nhận thanh toán từ khách hàng nhanh chóng và bảo mật
-        - Quản lý dòng tiền hiệu quả 
-        - Tích hợp với các hệ thống kế toán phổ biến
-        
-        Mục tiêu: Tăng nhận diện thương hiệu, thu hút đối tác và khách hàng SME.
-        Target: Chủ doanh nghiệp nhỏ, quản lý tài chính, cộng đồng fintech.
-        """
-        
-        result = await agent_system.process_complete_request(
-            user_input=demo_input,
-            budget=25000000,  # 25M VND
-            session_id=f"demo_{uuid.uuid4().hex[:8]}"
-        )
-        
+        stats = await media_db.get_media_statistics()
         return {
-            "demo_input": demo_input,
-            "budget": 25000000,
-            "result": result,
-            "message": "Demo completed successfully!"
+            "database_stats": stats,
+            "api_version": settings.api_version,
+            "timestamp": datetime.utcnow().isoformat()
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"❌ Demo test failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Demo failed: {str(e)}")
+        logger.error(f"❌ Failed to get media stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve media statistics")
+
+@app.get("/api/media/top-traffic")
+async def get_top_traffic_media(limit: int = 20):
+    """Get top media outlets by traffic"""
+    try:
+        top_media = await media_db.get_top_media_by_traffic(limit)
+        return {
+            "top_media": [outlet.model_dump() for outlet in top_media],
+            "count": len(top_media),
+            "limit": limit
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to get top traffic media: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve top traffic media")
 
 # =================== ADMIN ENDPOINTS ===================
 
-@app.get("/api/admin/stats")
-async def get_system_stats():
-    """Get system statistics (admin only)"""
+@app.get("/api/admin/sessions")
+async def get_active_sessions():
+    """Get all active conversation sessions (admin only)"""
     try:
+        if not conversational_agent_system:
+            raise HTTPException(status_code=503, detail="Conversational system not available")
+        
+        active_sessions = conversational_agent_system.get_active_sessions()
+        session_details = []
+        
+        for session_id in active_sessions:
+            summary = conversational_agent_system.get_session_summary(session_id)
+            if summary:
+                summary["websocket_connected"] = session_id in active_websockets
+                session_details.append(summary)
+        
         return {
-            "active_sessions": len(chat_sessions),
-            "processing_results": len(processing_results),
-            "active_websockets": len(active_websockets),
-            "system_uptime": datetime.utcnow(),
-            "agent_system_status": "active" if agent_system else "inactive"
+            "active_sessions": session_details,
+            "total_sessions": len(session_details),
+            "websocket_connections": len(active_websockets)
         }
+        
     except Exception as e:
-        logger.error(f"❌ Failed to get stats: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve stats")
+        logger.error(f"❌ Failed to get active sessions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve active sessions")
 
-# =================== UTILITY FUNCTIONS ===================
+@app.get("/api/admin/system-stats")
+async def get_system_statistics():
+    """Get comprehensive system statistics"""
+    try:
+        # Get conversation stats
+        conv_stats = {
+            "total_active_sessions": 0,
+            "websocket_connections": len(active_websockets),
+            "agent_system_status": "active" if conversational_agent_system else "inactive"
+        }
+        
+        if conversational_agent_system:
+            active_sessions = conversational_agent_system.get_active_sessions()
+            conv_stats["total_active_sessions"] = len(active_sessions)
+        
+        # Get database stats
+        db_stats = await media_db.get_media_statistics()
+        
+        # Get document processor stats
+        doc_processor = get_document_processor()
+        doc_stats = {"status": "active" if doc_processor else "inactive"}
+        
+        return {
+            "system_uptime": datetime.utcnow().isoformat(),
+            "api_version": settings.api_version,
+            "conversation_stats": conv_stats,
+            "database_stats": db_stats,
+            "document_processor": doc_stats,
+            "performance": {
+                "max_concurrent_requests": settings.max_concurrent_requests,
+                "request_timeout": settings.request_timeout
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to get system stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve system stats")
 
-def _format_chat_data_to_text(chat_data: Dict[str, Any]) -> str:
-    """Convert chatbot answers to formatted text for AI agents"""
-    
-    formatted_input = "THÔNG TIN DỰ ÁN:\n\n"
-    
-    # Map question IDs to meaningful labels
-    question_mapping = {
-        "1": "Tình trạng bài PR",
-        "2": "Tài liệu bổ sung",
-        "3": "Ngôn ngữ sử dụng",
-        "4": "Mô tả chi tiết dự án",
-        "5": "Tài liệu đính kèm",
-        "6": "Kênh truyền thông mong muốn",
-        "7": "Ngân sách dự kiến"
-    }
-    
-    for q_id, answer in chat_data.items():
-        if q_id in question_mapping:
-            label = question_mapping[q_id]
-            
-            # Format different answer types
-            if isinstance(answer, list):
-                answer_text = ", ".join(answer)
-            else:
-                answer_text = str(answer)
-            
-            formatted_input += f"{label}: {answer_text}\n"
-    
-    formatted_input += f"\nThời gian yêu cầu: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
-    
-    return formatted_input
+# =================== LEGACY COMPATIBILITY ENDPOINTS ===================
+
+@app.post("/api/demo/quick-test")
+async def quick_conversational_demo():
+    """Quick demo of the conversational system"""
+    try:
+        if not conversational_agent_system:
+            raise HTTPException(status_code=503, detail="Conversational system not available")
+        
+        # Start conversation
+        session_id = str(uuid.uuid4())
+        start_response = await conversational_agent_system.start_conversation(session_id)
+        
+        # Simulate user interaction
+        user_message = "Chúng tôi là startup fintech VietPay phát triển app thanh toán cho SME. Ngân sách 30 triệu, muốn tăng awareness và thu hút khách hàng."
+        continue_response = await conversational_agent_system.continue_conversation(session_id, user_message)
+        
+        # Trigger workflow if ready
+        workflow_result = None
+        if continue_response.can_proceed:
+            workflow_response = await conversational_agent_system.trigger_workflow(session_id)
+            workflow_result = workflow_response.data
+        
+        return {
+            "demo_type": "conversational_flow",
+            "session_id": session_id,
+            "steps": [
+                {"step": "greeting", "response": start_response.message},
+                {"step": "user_input", "message": user_message},
+                {"step": "agent_response", "response": continue_response.message},
+                {"step": "workflow_ready", "can_proceed": continue_response.can_proceed}
+            ],
+            "workflow_result": workflow_result,
+            "message": "Conversational demo completed successfully!"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Conversational demo failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Demo failed: {str(e)}")
 
 # =================== STATIC FILES ===================
 
@@ -729,7 +925,7 @@ def main():
     # Configure logging
     logger.remove()  # Remove default handler
     logger.add(
-        "logs/instant_media_release.log",
+        "logs/conversational_media_release.log",
         rotation="1 day",
         retention="30 days",
         level=settings.log_level,
@@ -741,10 +937,13 @@ def main():
         format="<green>{time:HH:mm:ss}</green> | <level>{level}</level> | <cyan>{name}</cyan> | {message}"
     )
     
-    logger.info("🚀 Starting Instant Media Release API Server...")
-    logger.info(f"📱 Demo interface: http://{settings.host}:{settings.port}")
+    logger.info("🚀 Starting Instant Media Release Conversational API Server...")
+    logger.info(f"📱 Interactive demo: http://{settings.host}:{settings.port}")
     logger.info(f"📚 API documentation: http://{settings.host}:{settings.port}/docs")
     logger.info(f"🔍 Health check: http://{settings.host}:{settings.port}/health")
+    logger.info(f"💬 Conversational AI: Enabled with real-time WebSocket")
+    logger.info(f"📄 Document processing: Enabled")
+    logger.info(f"📊 Enhanced database: 100 Vietnamese media outlets")
     
     # Run server
     uvicorn.run(
