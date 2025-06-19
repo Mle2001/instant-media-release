@@ -40,20 +40,28 @@ os.makedirs(REPORT_DIR, exist_ok=True)
 # The ROI threshold to consider a campaign "successful" and worth learning from
 SUCCESS_CRITERIA_ROI = float(os.getenv("SUCCESS_CRITERIA_ROI", "50.0"))
 
-# Font setup for PDF generation to support Vietnamese characters.
-# IMPORTANT: Place a Vietnamese-compatible .ttf font file (e.g., 'Roboto-Regular.ttf')
-# in the project's root directory.
-try:
-    FONT_PATH = 'Roboto-Regular.ttf'
-    pdfmetrics.registerFont(TTFont('VietnameseFont', FONT_PATH))
-    logger.info(f"✅ Vietnamese font '{FONT_PATH}' successfully registered for PDF generation.")
-except Exception:
+# --- FONT SETUP FOR PDF / CÀI ĐẶT FONT CHO PDF ---
+# This section has been updated to be more robust and prevent crashes.
+FONT_PATH = 'Roboto-Regular.ttf'
+
+# Check if the custom font file exists before trying to register it.
+if os.path.exists(FONT_PATH):
+    try:
+        pdfmetrics.registerFont(TTFont('VietnameseFont', FONT_PATH))
+        logger.info(f"✅ Vietnamese font '{FONT_PATH}' successfully registered for PDF generation.")
+    except Exception as e:
+        logger.error(f"❌ Failed to register font '{FONT_PATH}': {e}. Falling back to Helvetica.")
+        # In case of a font file error, still fallback safely.
+        pdfmetrics.registerFont(TTFont('VietnameseFont', 'Helvetica'))
+else:
+    # If the font file is not found, log a clear warning and use a safe fallback.
     logger.warning(
-        f"Font '{FONT_PATH}' not found. PDF reports may not display Vietnamese characters correctly. "
-        "Falling back to Helvetica. Please download a compatible font from Google Fonts."
+        f"Font file '{FONT_PATH}' not found. PDF reports may not display Vietnamese characters correctly. "
+        "Falling back to Helvetica. Please download the font from Google Fonts and place it in the project directory."
     )
-    # Fallback to a default font if the custom one is not found
+    # Register the built-in 'Helvetica' font as the fallback.
     pdfmetrics.registerFont(TTFont('VietnameseFont', 'Helvetica'))
+
 
 # ==============================================================================
 # SECTION 2: REPORTING SERVICE

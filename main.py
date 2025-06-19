@@ -2,7 +2,8 @@
 Instant Media Release - Production FastAPI Server
 High-performance async API with Agno AI integration
 """
-
+from dotenv import load_dotenv
+load_dotenv()
 import os
 import json
 import uuid
@@ -17,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.security import HTTPBearer
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import uvicorn
 from loguru import logger
 
@@ -29,7 +30,6 @@ from services import ReportingService, StrategyOptimizerService # NEW: Import se
 
 # SQLAlchemy Session import
 from sqlalchemy.orm import Session
-
 # =================== CONFIGURATION ===================
 
 class Settings(BaseSettings):
@@ -54,8 +54,11 @@ class Settings(BaseSettings):
     max_concurrent_requests: int = 100
     request_timeout: int = 300
     
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file='.env', 
+        env_file_encoding='utf-8',
+        extra='ignore' # Bỏ qua các biến môi trường không được khai báo
+    )
 
 settings = Settings()
 
