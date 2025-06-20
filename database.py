@@ -179,12 +179,15 @@ class MediaOutletResponse(BaseModel):
     access_from_vietnam: Optional[float] = None
     male_audience: Optional[float] = None
     female_audience: Optional[float] = None
-    top_categories: List[str]
+    top_categories: List[str] = []
     cost_per_article: float
-    topics: List[str]
-    target_audience: List[str]
+    topics: List[str] = []
+    target_audience: List[str] = []
     response_time_hours: int
     success_rate: float
+    language: str = "Vietnamese"  # Fix: Add missing language field
+    circulation: Optional[int] = None  # Add for compatibility
+    publisher: Optional[str] = None   # Add for compatibility
 
 class UserRequestCreate(BaseModel):
     """Create user request model"""
@@ -1696,75 +1699,175 @@ VIETNAMESE_MEDIA_DATA = [
 
 # Process and standardize the data
 def standardize_media_data():
-    """Standardize and enrich media data"""
+    """Standardize and enrich media data with better error handling"""
     for media in VIETNAMESE_MEDIA_DATA:
-        # Set defaults for missing fields
-        if 'publisher' not in media:
-            media['publisher'] = f"{media['name']} Media"
-        
-        if 'circulation' not in media:
-            media['circulation'] = media.get('monthly_visits', 1000000)
-        
-        if 'publication_format' not in media:
-            media['publication_format'] = "Online"
-        
-        if 'language' not in media:
-            media['language'] = "Vietnamese"
-        
-        # Estimate cost if not provided
-        if 'cost_per_article' not in media:
-            media['cost_per_article'] = estimate_cost_by_tier_and_visits(
-                media['tier'], 
-                media.get('monthly_visits')
-            )
-        
-        # Convert top_categories to topics for compatibility
-        if 'topics' not in media:
-            media['topics'] = media['top_categories']
-        
-        # Generate target_audience from demographics
-        if 'target_audience' not in media:
-            audiences = []
+        try:
+            # Set defaults for missing fields
+            if 'publisher' not in media:
+                media['publisher'] = f"{media['name']} Media"
             
-            # Gender-based audiences
-            if media.get('male_audience', 50) > 60:
-                audiences.append("Male-dominant audience")
-            elif media.get('female_audience', 50) > 60:
-                audiences.append("Female-dominant audience")
-            else:
-                audiences.append("General audience")
+            if 'circulation' not in media:
+                media['circulation'] = media.get('monthly_visits', 1000000)
             
-            # Age-based audiences
-            if media.get('age_18_24', 0) > 20:
-                audiences.append("Young adults")
-            if media.get('age_25_34', 0) > 30:
-                audiences.append("Millennials")
-            if media.get('age_45_54', 0) > 20:
-                audiences.append("Middle-aged professionals")
+            if 'publication_format' not in media:
+                media['publication_format'] = "Online"
             
-            # Category-based audiences
-            if media['category'] == 'BUSINESS':
-                audiences.extend(["Business professionals", "Investors", "Entrepreneurs"])
-            elif media['category'] == 'TECHNOLOGY':
-                audiences.extend(["Tech enthusiasts", "IT professionals", "Early adopters"])
-            elif media['category'] == 'YOUTH_ENTERTAINMENT':
-                audiences.extend(["Young adults", "Entertainment fans", "Social media users"])
-            elif media['category'] == 'WOMAN_FAMILY':
-                audiences.extend(["Women", "Families", "Parents"])
-            else:
-                audiences.append("General public")
+            if 'language' not in media:
+                media['language'] = "Vietnamese"
             
-            media['target_audience'] = list(set(audiences))
-        
-        # Set response time and success rate defaults
-        if 'response_time_hours' not in media:
-            media['response_time_hours'] = 24 if media['tier'] == 1 else 48
-        
-        if 'success_rate' not in media:
-            media['success_rate'] = 0.85 if media['tier'] == 1 else 0.75
+            # Estimate cost if not provided
+            if 'cost_per_article' not in media:
+                media['cost_per_article'] = estimate_cost_by_tier_and_visits(
+                    media['tier'], 
+                    media.get('monthly_visits')
+                )
+            
+            # Convert top_categories to topics for compatibility
+            if 'topics' not in media:
+                media['topics'] = media.get('top_categories', [])
+            
+            # Ensure topics is a list
+            if isinstance(media['topics'], str):
+                try:
+                    media['topics'] = json.loads(media['topics'])
+                except:
+                    media['topics'] = [media['topics']]
+            elif not isinstance(media['topics'], list):
+                media['topics'] = []
+            
+            # Generate target_audience from demographics with safety checks
+            if 'target_audience' not in media:
+                audiences = []
+                
+                # Gender-based audiences
+                male_aud = media.get('male_audience', 50)
+                female_aud = media.get('female_audience', 50)
+                
+                if male_aud and male_aud > 60:
+                    audiences.append("Male-dominant audience")
+                elif female_aud and female_aud > 60:
+                    audiences.append("Female-dominant audience")
+                else:
+                    audiences.append("General audience")
+                
+                # Age-based audiences
+                if media.get('age_18_24', 0) and media['age_18_24'] > 20:
+                    audiences.append("Young adults")
+                if media.get('age_25_34', 0) and media['age_25_34'] > 30:
+                    audiences.append("Millennials")
+                if media.get('age_45_54', 0) and media['age_45_54'] > 20:
+                    audiences.append("Middle-aged professionals")
+                
+                # Category-based audiences
+                category = media.get('category', '').upper()
+                if category == 'BUSINESS':
+                    audiences.extend(["Business professionals", "Investors", "Entrepreneurs"])
+                elif category == 'TECHNOLOGY':
+                    audiences.extend(["Tech enthusiasts", "IT professionals", "Early adopters"])
+                elif category == 'YOUTH_ENTERTAINMENT':
+                    audiences.extend(["Young adults", "Entertainment fans", "Social media users"])
+                elif category == 'WOMAN_FAMILY':
+                    audiences.extend(["Women", "Families", "Parents"])
+                else:
+                    audiences.append("General public")
+                
+                media['target_audience'] = list(set(audiences))
+            
+            # Ensure target_audience is a list
+            if isinstance(media['target_audience'], str):
+                try:
+                    media['target_audience'] = json.loads(media['target_audience'])
+                except:
+                    media['target_audience'] = [media['target_audience']]
+            elif not isinstance(media['target_audience'], list):
+                media['target_audience'] = []
+            
+            # Set response time and success rate defaults
+            if 'response_time_hours' not in media:
+                media['response_time_hours'] = 24 if media.get('tier', 2) == 1 else 48
+            
+            if 'success_rate' not in media:
+                media['success_rate'] = 0.85 if media.get('tier', 2) == 1 else 0.75
+            
+            # Ensure numeric fields are properly typed
+            numeric_fields = ['tier', 'monthly_visits', 'cost_per_article', 'response_time_hours']
+            for field in numeric_fields:
+                if field in media and media[field] is not None:
+                    try:
+                        media[field] = int(media[field])
+                    except (ValueError, TypeError):
+                        # Set defaults for invalid numeric values
+                        if field == 'tier':
+                            media[field] = 2
+                        elif field == 'monthly_visits':
+                            media[field] = 1000000
+                        elif field == 'cost_per_article':
+                            media[field] = 1000000
+                        elif field == 'response_time_hours':
+                            media[field] = 24
+            
+            # Ensure float fields are properly typed
+            float_fields = ['success_rate', 'male_audience', 'female_audience', 'access_from_vietnam']
+            for field in float_fields:
+                if field in media and media[field] is not None:
+                    try:
+                        media[field] = float(media[field])
+                    except (ValueError, TypeError):
+                        if field == 'success_rate':
+                            media[field] = 0.8
+                        else:
+                            media[field] = None
+            
+        except Exception as e:
+            logger.error(f"❌ Error standardizing media data for {media.get('name', 'Unknown')}: {e}")
+            # Continue processing other media outlets
+            continue
 
-# Standardize the data
+def validate_media_data_structure():
+    """Validate the integrity of media data after standardization"""
+    logger.info("🔍 Validating media data structure...")
+    
+    issues = []
+    
+    for i, media in enumerate(VIETNAMESE_MEDIA_DATA):
+        try:
+            # Required fields check
+            required_fields = ['name', 'website', 'category', 'tier', 'top_categories', 'cost_per_article']
+            for field in required_fields:
+                if field not in media or not media[field]:
+                    issues.append(f"Media {i+1} ({media.get('name', 'Unknown')}): Missing {field}")
+            
+            # Type validation
+            if media.get('tier') not in [1, 2, 3]:
+                issues.append(f"Media {i+1} ({media.get('name', 'Unknown')}): Invalid tier {media.get('tier')}")
+            
+            if not isinstance(media.get('cost_per_article', 0), (int, float)) or media.get('cost_per_article', 0) <= 0:
+                issues.append(f"Media {i+1} ({media.get('name', 'Unknown')}): Invalid cost {media.get('cost_per_article')}")
+            
+            # List validation
+            if not isinstance(media.get('topics', []), list):
+                issues.append(f"Media {i+1} ({media.get('name', 'Unknown')}): topics should be list")
+            
+            if not isinstance(media.get('target_audience', []), list):
+                issues.append(f"Media {i+1} ({media.get('name', 'Unknown')}): target_audience should be list")
+                
+        except Exception as e:
+            issues.append(f"Media {i+1}: Validation error - {e}")
+    
+    if issues:
+        logger.warning(f"⚠️ Found {len(issues)} data validation issues:")
+        for issue in issues[:5]:  # Show first 5 issues
+            logger.warning(f"   • {issue}")
+        if len(issues) > 5:
+            logger.warning(f"   • ... and {len(issues) - 5} more issues")
+    else:
+        logger.info(f"✅ All {len(VIETNAMESE_MEDIA_DATA)} media outlets validated successfully")
+    
+    return len(issues) == 0
+
+# Update the standardization call
 standardize_media_data()
+validate_media_data_structure()
 
 # =================== DATABASE OPERATIONS ===================
 
@@ -1787,25 +1890,40 @@ class MediaDatabase:
             raise
     
     def _setup_vector_db(self):
-        """Setup ChromaDB collection with error handling"""
+        """Setup ChromaDB collection with enhanced error handling"""
         if not chroma_client or not embedding_model:
-            logger.warning("⚠️ Vector database not available")
+            logger.warning("⚠️ Vector database not available - ChromaDB or embedding model missing")
             return
             
         try:
-            # Try to get existing collection
-            self.vector_collection = chroma_client.get_collection(CHROMA_COLLECTION_NAME)
-            logger.info(f"✅ Vector collection '{CHROMA_COLLECTION_NAME}' loaded")
-        except Exception:
-            # Create new collection
+            # Try to get existing collection first
             try:
-                self.vector_collection = chroma_client.create_collection(
-                    name=CHROMA_COLLECTION_NAME,
-                    metadata={"hnsw:space": "cosine"}
-                )
-                logger.info(f"✅ Vector collection '{CHROMA_COLLECTION_NAME}' created")
-            except Exception as e:
-                logger.error(f"❌ Vector collection creation failed: {e}")
+                self.vector_collection = chroma_client.get_collection(CHROMA_COLLECTION_NAME)
+                logger.info(f"✅ Vector collection '{CHROMA_COLLECTION_NAME}' loaded")
+                
+                # Test the collection
+                try:
+                    count = self.vector_collection.count()
+                    logger.info(f"📊 Collection has {count} documents")
+                except Exception as count_error:
+                    logger.warning(f"Could not get collection count: {count_error}")
+                    
+            except Exception as get_error:
+                logger.info(f"Collection doesn't exist, creating new one: {get_error}")
+                # Create new collection
+                try:
+                    self.vector_collection = chroma_client.create_collection(
+                        name=CHROMA_COLLECTION_NAME,
+                        metadata={"hnsw:space": "cosine"}
+                    )
+                    logger.info(f"✅ Vector collection '{CHROMA_COLLECTION_NAME}' created")
+                except Exception as create_error:
+                    logger.error(f"❌ Vector collection creation failed: {create_error}")
+                    self.vector_collection = None
+                    
+        except Exception as e:
+            logger.error(f"❌ Vector database setup failed: {e}")
+            self.vector_collection = None
     
     @asynccontextmanager
     async def get_db_session(self):
@@ -1946,12 +2064,25 @@ class MediaDatabase:
             # Generate query embedding
             query_embedding = embedding_model.encode(query).tolist()
             
-            # Search in ChromaDB
-            results = self.vector_collection.query(
-                query_embeddings=[query_embedding],
-                n_results=limit,
-                include=["documents", "metadatas", "distances"]
-            )
+            # Search in ChromaDB with enhanced error handling
+            try:
+                results = self.vector_collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=limit,
+                    include=["documents", "metadatas", "distances"]
+                )
+            except Exception as chroma_error:
+                logger.error(f"ChromaDB query failed: {chroma_error}")
+                # Try alternative query format
+                try:
+                    results = self.vector_collection.query(
+                        query_texts=[query],  # Use text query instead
+                        n_results=limit,
+                        include=["documents", "metadatas", "distances"]
+                    )
+                except Exception as fallback_error:
+                    logger.error(f"ChromaDB fallback query failed: {fallback_error}")
+                    return {"documents": [], "metadatas": [], "distances": []}
             
             logger.debug(f"🔍 Vector search for '{query}' returned {len(results.get('documents', [[]])[0])} results")
             return results
@@ -1973,6 +2104,22 @@ class MediaDatabase:
                 
                 result = []
                 for media in media_outlets:
+                    # Fix: Safe parsing of JSON fields with fallbacks
+                    try:
+                        top_categories = json.loads(media.top_categories) if media.top_categories else []
+                    except (json.JSONDecodeError, TypeError):
+                        top_categories = []
+                    
+                    try:
+                        topics = json.loads(media.topics) if media.topics else []
+                    except (json.JSONDecodeError, TypeError):
+                        topics = []
+                    
+                    try:
+                        target_audience = json.loads(media.target_audience) if media.target_audience else []
+                    except (json.JSONDecodeError, TypeError):
+                        target_audience = []
+                    
                     result.append(MediaOutletResponse(
                         id=media.id,
                         name=media.name,
@@ -1984,12 +2131,15 @@ class MediaDatabase:
                         access_from_vietnam=media.access_from_vietnam,
                         male_audience=media.male_audience,
                         female_audience=media.female_audience,
-                        top_categories=json.loads(media.top_categories) if media.top_categories else [],
+                        top_categories=top_categories,
                         cost_per_article=media.cost_per_article,
-                        topics=json.loads(media.topics) if media.topics else [],
-                        target_audience=json.loads(media.target_audience) if media.target_audience else [],
+                        topics=topics,
+                        target_audience=target_audience,
                         response_time_hours=media.response_time_hours,
-                        success_rate=media.success_rate
+                        success_rate=media.success_rate,
+                        language=media.language or "Vietnamese",  # Fix: Safe language access
+                        circulation=media.circulation,
+                        publisher=media.publisher
                     ))
                 
                 return result
@@ -2020,6 +2170,22 @@ class MediaDatabase:
                 
                 result = []
                 for media in media_outlets:
+                    # Fix: Safe parsing with error handling
+                    try:
+                        top_categories = json.loads(media.top_categories) if media.top_categories else []
+                    except:
+                        top_categories = []
+                    
+                    try:
+                        topics = json.loads(media.topics) if media.topics else []
+                    except:
+                        topics = []
+                    
+                    try:
+                        target_audience = json.loads(media.target_audience) if media.target_audience else []
+                    except:
+                        target_audience = []
+                    
                     result.append(MediaOutletResponse(
                         id=media.id,
                         name=media.name,
@@ -2031,12 +2197,15 @@ class MediaDatabase:
                         access_from_vietnam=media.access_from_vietnam,
                         male_audience=media.male_audience,
                         female_audience=media.female_audience,
-                        top_categories=json.loads(media.top_categories) if media.top_categories else [],
+                        top_categories=top_categories,
                         cost_per_article=media.cost_per_article,
-                        topics=json.loads(media.topics) if media.topics else [],
-                        target_audience=json.loads(media.target_audience) if media.target_audience else [],
+                        topics=topics,
+                        target_audience=target_audience,
                         response_time_hours=media.response_time_hours,
-                        success_rate=media.success_rate
+                        success_rate=media.success_rate,
+                        language=media.language or "Vietnamese",
+                        circulation=media.circulation,
+                        publisher=media.publisher
                     ))
                 
                 return result
@@ -2110,23 +2279,48 @@ class MediaDatabase:
                 
                 result = []
                 for media in media_outlets:
+                    # Fix: Comprehensive safe parsing
+                    try:
+                        top_categories = json.loads(media.top_categories) if media.top_categories else []
+                        if not isinstance(top_categories, list):
+                            top_categories = []
+                    except:
+                        top_categories = []
+                    
+                    try:
+                        topics = json.loads(media.topics) if media.topics else []
+                        if not isinstance(topics, list):
+                            topics = []
+                    except:
+                        topics = []
+                    
+                    try:
+                        target_audience = json.loads(media.target_audience) if media.target_audience else []
+                        if not isinstance(target_audience, list):
+                            target_audience = []
+                    except:
+                        target_audience = []
+                    
                     result.append(MediaOutletResponse(
                         id=media.id,
                         name=media.name,
                         website=media.website,
                         category=media.category,
                         tier=media.tier,
-                        monthly_visits=media.monthly_visits,
+                        monthly_visits=media.monthly_visits or 0,
                         visit_duration=media.visit_duration,
                         access_from_vietnam=media.access_from_vietnam,
                         male_audience=media.male_audience,
                         female_audience=media.female_audience,
-                        top_categories=json.loads(media.top_categories) if media.top_categories else [],
-                        cost_per_article=media.cost_per_article,
-                        topics=json.loads(media.topics) if media.topics else [],
-                        target_audience=json.loads(media.target_audience) if media.target_audience else [],
-                        response_time_hours=media.response_time_hours,
-                        success_rate=media.success_rate
+                        top_categories=top_categories,
+                        cost_per_article=media.cost_per_article or 1000000,
+                        topics=topics,
+                        target_audience=target_audience,
+                        response_time_hours=media.response_time_hours or 24,
+                        success_rate=media.success_rate or 0.8,
+                        language=media.language or "Vietnamese",
+                        circulation=media.circulation,
+                        publisher=media.publisher
                     ))
                 
                 return result
@@ -2238,6 +2432,22 @@ class MediaDatabase:
                 
                 result = []
                 for media in media_outlets:
+                    # Fix: Safe JSON parsing for all fields
+                    try:
+                        top_categories = json.loads(media.top_categories) if media.top_categories else []
+                    except:
+                        top_categories = []
+                    
+                    try:
+                        topics = json.loads(media.topics) if media.topics else []
+                    except:
+                        topics = []
+                    
+                    try:
+                        target_audience = json.loads(media.target_audience) if media.target_audience else []
+                    except:
+                        target_audience = []
+                    
                     result.append(MediaOutletResponse(
                         id=media.id,
                         name=media.name,
@@ -2249,12 +2459,15 @@ class MediaDatabase:
                         access_from_vietnam=media.access_from_vietnam,
                         male_audience=media.male_audience,
                         female_audience=media.female_audience,
-                        top_categories=json.loads(media.top_categories) if media.top_categories else [],
+                        top_categories=top_categories,
                         cost_per_article=media.cost_per_article,
-                        topics=json.loads(media.topics) if media.topics else [],
-                        target_audience=json.loads(media.target_audience) if media.target_audience else [],
+                        topics=topics,
+                        target_audience=target_audience,
                         response_time_hours=media.response_time_hours,
-                        success_rate=media.success_rate
+                        success_rate=media.success_rate,
+                        language=media.language or "Vietnamese",
+                        circulation=media.circulation,
+                        publisher=media.publisher
                     ))
                 
                 return result
