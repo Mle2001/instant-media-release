@@ -29,3 +29,5 @@ aiohttp
 websockets
 
 reportlab
+fitz
+docx
