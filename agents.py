@@ -25,8 +25,8 @@ from document_processor import get_document_processor
 # =================== CONFIGURATION ===================
 
 # OpenAI Configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "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")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
 OPENAI_MAX_TOKENS = int(os.getenv("OPENAI_MAX_TOKENS", "4000"))
 
@@ -128,17 +128,151 @@ class ConversationContext:
 
 # =================== STRUCTURED OUTPUT MODELS ===================
 
+# class ConversationResponse(BaseModel):
+#     """Structured conversation response"""
+#     message: str = Field(description="Response message to user")
+#     state: str = Field(description="Current conversation state")
+#     phase: str = Field(description="Current workflow phase")
+#     suggestions: List[str] = Field(description="Suggested user actions", default=[])
+#     options: List[str] = Field(description="Available options for user", default=[])
+#     progress: Optional[Dict] = Field(description="Progress information", default=None)
+#     data: Optional[Dict] = Field(description="Additional data", default=None)
+#     requires_input: bool = Field(description="Whether user input is required", default=True)
+#     can_proceed: bool = Field(description="Whether workflow can proceed", default=False)
+
 class ConversationResponse(BaseModel):
-    """Structured conversation response"""
-    message: str = Field(description="Response message to user")
-    state: str = Field(description="Current conversation state")
-    phase: str = Field(description="Current workflow phase")
-    suggestions: List[str] = Field(description="Suggested user actions", default=[])
-    options: List[str] = Field(description="Available options for user", default=[])
-    progress: Optional[Dict] = Field(description="Progress information", default=None)
-    data: Optional[Dict] = Field(description="Additional data", default=None)
-    requires_input: bool = Field(description="Whether user input is required", default=True)
-    can_proceed: bool = Field(description="Whether workflow can proceed", default=False)
+    """
+    Structured conversation response for Vietnamese PR consultation chatbot.
+    This model defines the exact JSON format that AI agents MUST return.
+    """
+    
+    message: str = Field(
+        description="""
+        Main conversational response message to user in Vietnamese.
+        Should be natural, helpful, and contextually appropriate.
+        Examples: 
+        - 'Cảm ơn bạn đã chia sẻ! Fintech cho SME là lĩnh vực rất tiềm năng...'
+        - 'Tuyệt vời! Với ngân sách 30 triệu, chúng ta có nhiều lựa chọn hiệu quả...'
+        - 'Tôi hiểu bạn muốn tăng awareness. Bạn có thể chia sẻ thêm về...'
+        Length: 50-300 characters for optimal user experience.
+        """
+    )
+    
+    state: str = Field(
+        description="""
+        Current conversation state representing user journey progress.
+        VALID VALUES ONLY:
+        - 'greeting': Initial welcome, getting basic info
+        - 'gathering_info': Collecting project details, budget, requirements  
+        - 'analyzing': Ready to process, confirming final details
+        - 'planning': AI agents working on strategy
+        - 'confirming': Showing results, waiting for user approval
+        - 'executing': Implementing approved plan
+        - 'reviewing': User reviewing recommendations
+        - 'modifying': User requesting changes to plan
+        - 'completed': Process finished successfully
+        - 'error': Something went wrong, need to restart/fix
+        """
+    )
+    
+    phase: str = Field(
+        description="""
+        Current workflow execution phase (more granular than state).
+        VALID VALUES ONLY:
+        - 'idle': No active processing
+        - 'content_analysis': AI analyzing user input and requirements
+        - 'document_analysis': Processing uploaded files (PDF/DOC)
+        - 'media_matching': Finding suitable Vietnamese media outlets
+        - 'pricing_optimization': Calculating optimal package (Starter/Standard/Premium)
+        - 'report_generation': Creating executive strategy report
+        - 'user_review': Waiting for user feedback on recommendations
+        - 'plan_modification': Adjusting plan based on user feedback
+        """
+    )
+    
+    suggestions: List[str] = Field(
+        description="""
+        Clickable suggestion buttons to guide user conversation.
+        Should be 3-5 short, actionable phrases in Vietnamese.
+        Examples:
+        - ['Mô tả sản phẩm chi tiết', 'Chia sẻ về khách hàng mục tiêu', 'Nói về ngân sách']
+        - ['Tăng awareness thương hiệu', 'Thu hút khách hàng mới', 'Xây dựng uy tín']
+        - ['Báo tier-1 (VnExpress, 24H)', 'Báo chuyên ngành', 'Báo địa phương']
+        Each suggestion: 20-50 characters, clear call-to-action.
+        """,
+        default=[]
+    )
+    
+    options: List[str] = Field(
+        description="""
+        Available action options for user at current stage.
+        Different from suggestions - these are more formal choices.
+        Examples:
+        - ['Bắt đầu phân tích AI', 'Tải lên tài liệu', 'Thay đổi ngân sách']
+        - ['Phê duyệt kế hoạch', 'Điều chỉnh danh sách báo', 'Thảo luận thêm']
+        - ['Gói Starter (12M)', 'Gói Standard (30M)', 'Gói Premium (50M)']
+        Use when user needs to make specific decisions.
+        """,
+        default=[]
+    )
+    
+    progress: Optional[Dict] = Field(
+        description="""
+        Progress information for ongoing AI processing (optional).
+        Structure when provided:
+        {
+            'step': 'Current step name',
+            'completed': number_of_completed_steps,
+            'total': total_number_of_steps,
+            'percentage': completion_percentage_0_to_100,
+            'message': 'User-friendly progress message'
+        }
+        Only include when state='planning' or phase involves AI agent processing.
+        """,
+        default=None
+    )
+    
+    data: Optional[Dict] = Field(
+        description="""
+        Additional structured data for frontend (optional).
+        Common use cases:
+        - User profile data: {'budget': 30000000, 'industry': 'fintech'}
+        - Results summary: {'recommended_media': 5, 'total_cost': 25000000}
+        - Workflow results: Complete AI agent analysis results
+        - Error details: {'error_type': 'validation', 'field': 'budget'}
+        Only include when frontend needs specific data for display/processing.
+        """,
+        default=None
+    )
+    
+    requires_input: bool = Field(
+        description="""
+        Whether system is waiting for user input to continue.
+        - True: User must respond/interact before next step (default)
+        - False: System can proceed automatically (rare cases)
+        Examples:
+        - True: After asking question, showing options, requesting approval
+        - False: During AI processing, automatic redirects, completion messages
+        """,
+        default=True
+    )
+    
+    can_proceed: bool = Field(
+        description="""
+        Whether system has enough information to trigger AI workflow.
+        Critical for determining when to show 'Bắt đầu phân tích AI' button.
+        
+        Requirements for True:
+        - Have project description (user_input length > 20 chars)
+        - Have budget information (budget > 0)
+        - Have basic requirements (industry OR objectives identified)
+        - State should be 'analyzing' or later
+        
+        When True: Show workflow trigger button, enable advanced features
+        When False: Continue gathering information, show guidance
+        """,
+        default=False
+    )
 
 class ContentAnalysis(BaseModel):
     """Structured output for content analysis agent"""
@@ -215,73 +349,128 @@ class PlanModification(BaseModel):
 # =================== UTILITY FUNCTIONS ===================
 
 def parse_agent_response(result: Any, model_class: type, fallback_data: Dict = None):
-    """Parse agent response with enhanced error handling"""
+    """FIXED: Enhanced agent response parser with better RunResponse handling"""
     try:
-        # If result is already the correct type, return it
+        logger.debug(f"🔍 Parsing {model_class.__name__} from {type(result)}")
+        
+        # ✅ CASE 1: Already correct model instance
         if isinstance(result, model_class):
+            logger.debug("✅ Response is already correct model instance")
             return result
         
-        # If result has content attribute (RunResponse)
+        # ✅ CASE 2: Handle RunResponse object (MAIN FIX)
         if hasattr(result, 'content'):
             content = result.content
+            logger.debug(f"📦 Found RunResponse content - Type: {type(content)}")
+            
+            # Nếu content đã là model instance (AGNO auto-parse)
+            if isinstance(content, model_class):
+                logger.debug("✅ RunResponse content is correct model instance")
+                return content
+            
+            # Nếu content là dict (parsed JSON)
+            if isinstance(content, dict):
+                logger.debug("✅ RunResponse content is dict, parsing...")
+                validated_data = content.copy()
+                
+                # Ensure required fields exist with defaults
+                if model_class == ConversationResponse:
+                    defaults = {
+                        "suggestions": [],
+                        "options": [],
+                        "progress": None,
+                        "data": None,
+                        "requires_input": True,
+                        "can_proceed": False
+                    }
+                    for key, default_value in defaults.items():
+                        if key not in validated_data:
+                            validated_data[key] = default_value
+                
+                return model_class(**validated_data)
+            
+            # Nếu content là string (JSON)
             if isinstance(content, str):
-                # Try to parse as JSON first
+                logger.debug("✅ RunResponse content is string, attempting JSON parse...")
                 try:
-                    # Look for JSON in the content
-                    import re
-                    json_match = re.search(r'```json\s*(\{.*?\})\s*```', content, re.DOTALL)
-                    if json_match:
-                        parsed_data = json.loads(json_match.group(1))
-                        return model_class(**parsed_data)
+                    # Clean và parse JSON
+                    cleaned_content = content.strip()
                     
-                    # Try to parse the whole content as JSON
-                    parsed_data = json.loads(content)
+                    # Remove markdown if present
+                    if "```json" in cleaned_content:
+                        start = cleaned_content.find("```json") + 7
+                        end = cleaned_content.find("```", start)
+                        if end > start:
+                            cleaned_content = cleaned_content[start:end].strip()
+                    
+                    parsed_data = json.loads(cleaned_content)
+                    logger.debug(f"✅ Successfully parsed JSON: {list(parsed_data.keys())}")
+                    
+                    # Add defaults for ConversationResponse
+                    if model_class == ConversationResponse:
+                        defaults = {
+                            "suggestions": [],
+                            "options": [],
+                            "progress": None,
+                            "data": None,
+                            "requires_input": True,
+                            "can_proceed": False
+                        }
+                        for key, default_value in defaults.items():
+                            if key not in parsed_data:
+                                parsed_data[key] = default_value
+                    
                     return model_class(**parsed_data)
-                except json.JSONDecodeError:
-                    # If not JSON, try to extract structured info from text
-                    logger.warning(f"Failed to parse JSON from agent response: {content[:200]}...")
                     
-                    # Try to extract from markdown-like structure
-                    if fallback_data:
-                        # Use content to enhance fallback data where possible
-                        enhanced_fallback = fallback_data.copy()
-                        
-                        # Extract specific values from text if possible
-                        if "confidence" in content.lower():
-                            confidence_match = re.search(r'confidence[:\s]*([0-9.]+)', content.lower())
-                            if confidence_match:
-                                enhanced_fallback["confidence_score"] = float(confidence_match.group(1))
-                        
-                        return model_class(**enhanced_fallback)
+                except json.JSONDecodeError as e:
+                    logger.error(f"❌ JSON decode failed: {e}")
+                    logger.error(f"Content preview: {cleaned_content[:300]}")
                     
-            elif isinstance(content, dict):
-                return model_class(**content)
+                    # Try to extract JSON pattern from text
+                    import re
+                    json_pattern = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', cleaned_content, re.DOTALL)
+                    if json_pattern:
+                        try:
+                            parsed_data = json.loads(json_pattern.group(0))
+                            logger.debug("✅ Extracted JSON from text pattern")
+                            return model_class(**parsed_data)
+                        except:
+                            pass
+                    
+                    raise
         
-        # If result is a dict, try to parse directly
+        # ✅ CASE 3: Direct dict
         if isinstance(result, dict):
+            logger.debug("✅ Result is dict, parsing directly...")
             return model_class(**result)
         
-        # If result is a string, try JSON parsing
+        # ✅ CASE 4: String JSON
         if isinstance(result, str):
-            try:
-                parsed_data = json.loads(result)
-                return model_class(**parsed_data)
-            except json.JSONDecodeError:
-                pass
+            logger.debug("✅ Result is string, attempting JSON parse...")
+            parsed_data = json.loads(result)
+            return model_class(**parsed_data)
         
-        # If all else fails, use fallback
-        if fallback_data:
-            logger.warning(f"Using fallback data for {model_class.__name__}")
-            return model_class(**fallback_data)
-        
-        raise ValueError(f"Cannot parse response for {model_class.__name__}: {type(result)}")
+        # ❌ CASE 5: Unknown format
+        logger.error(f"❌ Unknown result format: {type(result)}")
+        raise ValueError(f"Cannot parse response type: {type(result)}")
         
     except Exception as e:
-        logger.error(f"Error parsing agent response: {e}")
+        logger.error(f"❌ Error parsing agent response: {e}")
+        logger.error(f"Result type: {type(result)}")
+        
+        # Detailed logging for debugging
+        if hasattr(result, 'content'):
+            logger.error(f"Content type: {type(result.content)}")
+            logger.error(f"Content preview: {str(result.content)[:300] if result.content else 'None'}")
+        else:
+            logger.error(f"Result preview: {str(result)[:300] if result else 'None'}")
+        
         if fallback_data:
-            logger.info(f"Using fallback data for {model_class.__name__}")
+            logger.warning(f"🔄 Using fallback data for {model_class.__name__}")
             return model_class(**fallback_data)
-        raise
+        
+        # Re-raise with more context
+        raise ValueError(f"Failed to parse {model_class.__name__} from {type(result)}: {e}")
 
 async def update_progress(context: ConversationContext, step: str, message: str):
     """Update progress and notify callbacks"""
@@ -360,20 +549,13 @@ class ConversationalMediaReleaseAgents:
         logger.info("✅ Conversational Media Release multi-agent system initialized")
     
     def _create_conversation_agent(self) -> Agent:
-        """Main conversational agent - the user's primary interface"""
         return Agent(
             name="ConversationAgent",
             role="Expert Vietnamese PR consultant and conversational AI assistant",
             model=self.llm,
-            description="""
-            You are ChiCom AI, a senior PR consultant specializing in Vietnamese media landscape.
-            You have deep expertise in press release strategy, media relations, and business communications.
-            You excel at understanding client needs through natural conversation and guiding them through
-            the media release process step by step.
-            """,
             instructions=[
                 "Engage users in natural, helpful conversation about their PR needs",
-                "Gather project information through friendly dialogue, not interrogation",
+                "Gather project information through friendly dialogue, not interrogation", 
                 "Explain the process clearly and set proper expectations",
                 "Identify when to trigger the AI workflow vs continue conversation",
                 "Help users understand their options and make informed decisions",
@@ -382,8 +564,23 @@ class ConversationalMediaReleaseAgents:
                 "Always maintain a professional yet approachable tone",
                 "Remember user preferences and adapt conversation accordingly",
                 "Guide users through reviewing and modifying recommendations",
-                "IMPORTANT: Always respond in valid JSON format matching ConversationResponse schema",
-                "Example response: {\"message\": \"Your response here\", \"state\": \"gathering_info\", \"phase\": \"idle\", \"suggestions\": [\"suggestion1\"], \"options\": [], \"requires_input\": true, \"can_proceed\": false}"
+                
+                # ✅ QUAN TRỌNG: Thêm instructions rõ ràng hơn
+                "CRITICAL: You MUST respond in valid JSON format only",
+                "NEVER include any text outside the JSON object",
+                "JSON must match ConversationResponse schema exactly",
+                "Required fields: message, state, phase, suggestions, options, requires_input, can_proceed",
+                
+                '''RESPONSE TEMPLATE:
+                {
+                    "message": "Your conversational response here in Vietnamese",
+                    "state": "greeting|gathering_info|analyzing|reviewing|etc",
+                    "phase": "idle|content_analysis|etc", 
+                    "suggestions": ["suggestion1", "suggestion2"],
+                    "options": ["option1", "option2"],
+                    "requires_input": true,
+                    "can_proceed": false
+                }'''
             ],
             response_model=ConversationResponse,
             storage=self.storage,
@@ -1221,19 +1418,25 @@ class ConversationalMediaReleaseAgents:
                         media_id = int(metadata["media_id"])
                         media = await media_db.get_media_by_id(media_id)
                         if media and media.is_active:
+                            # Fix: Handle None values safely
+                            monthly_visits = media.monthly_visits or 1000000  # Default 1M if None
+                            cost_per_article = media.cost_per_article or 1000000  # Default 1M if None
+                            success_rate = media.success_rate or 0.8  # Default 80% if None
+                            response_time = media.response_time_hours or 24  # Default 24h if None
+                            
                             media_candidates.append({
                                 "id": media.id,
                                 "name": media.name,
                                 "category": media.category,
                                 "tier": media.tier,
-                                "cost": media.cost_per_article,
-                                "monthly_visits": media.monthly_visits,
+                                "cost": cost_per_article,
+                                "monthly_visits": monthly_visits,
                                 "top_categories": json.loads(media.top_categories) if media.top_categories else [],
-                                "topics": json.loads(media.topics) if isinstance(media.topics, str) else media.topics,
-                                "audiences": json.loads(media.target_audience) if isinstance(media.target_audience, str) else media.target_audience,
-                                "language": media.language,
-                                "success_rate": media.success_rate,
-                                "response_time": media.response_time_hours
+                                "topics": json.loads(media.topics) if isinstance(media.topics, str) else (media.topics or []),
+                                "audiences": json.loads(media.target_audience) if isinstance(media.target_audience, str) else (media.target_audience or []),
+                                "language": media.language or "Vietnamese",
+                                "success_rate": success_rate,
+                                "response_time": response_time
                             })
             
             # Fallback to category-based search if vector search insufficient
@@ -1306,11 +1509,11 @@ class ConversationalMediaReleaseAgents:
                     fallback_data = {
                         "media_outlet_id": candidate["id"],
                         "media_name": candidate["name"],
-                        "matching_score": min(0.9, 0.6 + (candidate.get("monthly_visits", 0) / 100000000)),  # Higher traffic = higher score
+                        "matching_score": min(0.9, 0.6 + (candidate.get("monthly_visits", 1000000) / 100000000)),  # Safe calculation
                         "reasoning": f"Good fit for {content_analysis.industry_sector} in {candidate.get('category', 'general')} category",
-                        "estimated_reach": candidate.get("monthly_visits", candidate.get("circulation", 1000000)),
-                        "cost_vnd": candidate["cost"],
-                        "tier": candidate["tier"],
+                        "estimated_reach": candidate.get("monthly_visits", 1000000),  # Safe default
+                        "cost_vnd": candidate.get("cost", 1000000),  # Safe default
+                        "tier": candidate.get("tier", 2),  # Default tier 2
                         "language_match": candidate.get("language", "Vietnamese") == content_analysis.language or content_analysis.language == "Both",
                         "topic_overlap": 0.7,
                         "audience_fit": 0.7
@@ -1358,19 +1561,43 @@ class ConversationalMediaReleaseAgents:
             # Include conversation preferences in pricing
             conversation_summary = self._extract_key_info_from_conversation(context)
             document_context = ""
-            if context.document_analysis:
-                document_context = f"""
-                DOCUMENT ANALYSIS SUMMARY:
-                - Quality: {context.document_analysis.get('document_quality', 'Medium')}
-                - Supporting Data Available: {len(context.document_analysis.get('supporting_data', []))} items
-                - Media Angles: {len(context.document_analysis.get('media_angles', []))} potential angles
-                """
+            
+            # Fix: Safely access document_analysis - handle both dict and object
+            if hasattr(context, 'document_analysis') and context.document_analysis:
+                if isinstance(context.document_analysis, dict):
+                    document_context = f"""
+                    DOCUMENT ANALYSIS SUMMARY:
+                    - Quality: {context.document_analysis.get('document_quality', 'Medium')}
+                    - Supporting Data Available: {len(context.document_analysis.get('supporting_data', []))} items
+                    - Media Angles: {len(context.document_analysis.get('media_angles', []))} potential angles
+                    """
+                elif hasattr(context.document_analysis, 'document_quality'):
+                    # It's a Pydantic model
+                    document_context = f"""
+                    DOCUMENT ANALYSIS SUMMARY:
+                    - Quality: {context.document_analysis.document_quality}
+                    - Supporting Data Available: {len(context.document_analysis.supporting_data)} items
+                    - Media Angles: {len(context.document_analysis.media_angles)} potential angles
+                    """
+            
+            # Fix: Safely access content_analysis
+            content_analysis_data = "Not available"
+            if hasattr(context, 'content_analysis') and context.content_analysis:
+                if isinstance(context.content_analysis, dict):
+                    content_analysis_data = json.dumps(context.content_analysis, ensure_ascii=False)
+                elif hasattr(context.content_analysis, 'model_dump'):
+                    content_analysis_data = json.dumps(context.content_analysis.model_dump(), ensure_ascii=False)
+                elif hasattr(context.content_analysis, '__dict__'):
+                    content_analysis_data = json.dumps(context.content_analysis.__dict__, ensure_ascii=False)
+            
+            # Fix: Ensure budget is not zero
+            safe_budget = max(context.budget if context.budget > 0 else 25000000, 1000000)  # Minimum 1M VND
             
             prompt = f"""
             Optimize pricing strategy considering conversation context and user preferences:
             
-            USER BUDGET: {context.budget:,.0f} VND
-            CONTENT ANALYSIS: {context.content_analysis.model_dump() if hasattr(context, 'content_analysis') and context.content_analysis else "Not available"}
+            USER BUDGET: {safe_budget:,.0f} VND
+            CONTENT ANALYSIS: {content_analysis_data}
             CONVERSATION INSIGHTS: {conversation_summary}
             USER PREFERENCES: {json.dumps(context.preferences, ensure_ascii=False)}
             USER REQUIREMENTS: {json.dumps(context.requirements, ensure_ascii=False)}
@@ -1403,41 +1630,54 @@ class ConversationalMediaReleaseAgents:
             result = await self.pricing_optimizer.arun(prompt)
             
             # Determine best package based on budget and conversation
-            if context.budget <= 15000000:
+            if safe_budget <= 15000000:
                 recommended_package = "Starter"
-            elif context.budget <= 35000000:
+            elif safe_budget <= 35000000:
                 recommended_package = "Standard"
             else:
                 recommended_package = "Premium"
             
+            # Fix: Safe budget utilization calculation
+            package_price = PACKAGE_PRICES[recommended_package]["price"]
+            total_cost = min(safe_budget, package_price + total_media_cost)
+            budget_utilization = min(1.0, total_cost / safe_budget) if safe_budget > 0 else 0.0
+            
             # Parse with conversation-aware fallback
             fallback_data = {
                 "recommended_package": recommended_package,
-                "total_cost_vnd": min(context.budget, PACKAGE_PRICES[recommended_package]["price"] + total_media_cost),
-                "package_price_vnd": PACKAGE_PRICES[recommended_package]["price"],
-                "media_costs_vnd": min(total_media_cost, context.budget - PACKAGE_PRICES[recommended_package]["price"]),
+                "total_cost_vnd": total_cost,
+                "package_price_vnd": package_price,
+                "media_costs_vnd": min(total_media_cost, max(0, safe_budget - package_price)),
                 "timeline_days": PACKAGE_PRICES[recommended_package]["timeline"],
                 "media_count": max(1, len(recommendations)),
-                "budget_utilization": min(1.0, (PACKAGE_PRICES[recommended_package]["price"] + total_media_cost) / context.budget),
+                "budget_utilization": budget_utilization,
                 "cost_efficiency": "Good value for Vietnamese market",
                 "roi_projection": "Positive ROI expected based on reach and industry benchmarks",
                 "alternative_packages": [pkg for pkg in PACKAGE_PRICES.keys() if pkg != recommended_package]
             }
             
-            pricing_analysis = parse_agent_response(result, PricingAnalysis, fallback_data)
-            logger.info(f"✅ Pricing optimization completed - Package: {pricing_analysis.recommended_package}")
+            try:
+                pricing_analysis = parse_agent_response(result, PricingAnalysis, fallback_data)
+            except Exception as parse_error:
+                logger.warning(f"Pricing parse failed, using fallback: {parse_error}")
+                pricing_analysis = PricingAnalysis(**fallback_data)
             
+            logger.info(f"✅ Pricing optimization completed - Package: {pricing_analysis.recommended_package}")
             return pricing_analysis
             
         except Exception as e:
             logger.error(f"❌ Pricing optimization failed: {e}")
+            
             # Return conversation-aware fallback pricing
-            recommended_package = "Standard" if context.budget >= 25000000 else "Starter"
+            safe_budget = max(context.budget if context.budget > 0 else 25000000, 1000000)
+            recommended_package = "Standard" if safe_budget >= 25000000 else "Starter"
+            package_price = PACKAGE_PRICES[recommended_package]["price"]
+            
             return PricingAnalysis(
                 recommended_package=recommended_package,
-                total_cost_vnd=context.budget,
-                package_price_vnd=PACKAGE_PRICES[recommended_package]["price"],
-                media_costs_vnd=max(0, context.budget - PACKAGE_PRICES[recommended_package]["price"]),
+                total_cost_vnd=safe_budget,
+                package_price_vnd=package_price,
+                media_costs_vnd=max(0, safe_budget - package_price),
                 timeline_days=PACKAGE_PRICES[recommended_package]["timeline"],
                 media_count=max(1, len(recommendations)),
                 budget_utilization=1.0,

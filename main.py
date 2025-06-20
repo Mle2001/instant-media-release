@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("Conversational agent system initialization failed")
     
     # Initialize document processor
-    openai_key = os.getenv("OPENAI_API_KEY", "")
+    openai_key = os.getenv("OPENAI_API_KEY", "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")
     if openai_key:
         doc_init_success = init_document_processor(openai_key)
         if doc_init_success:
@@ -344,12 +344,14 @@ async def continue_conversation(request: ConversationContinueRequest):
             # Send progress via WebSocket if connected
             if request.session_id in active_websockets:
                 try:
-                    await active_websockets[request.session_id].send_text(json.dumps({
+                    progress_message = {
                         "type": "progress_update",
                         "data": progress_info
-                    }))
-                except:
-                    pass  # WebSocket might be disconnected
+                    }
+                    await active_websockets[request.session_id].send_text(json.dumps(progress_message))
+                    logger.debug(f"📤 Sent progress update: {progress_info.get('step', 'Unknown')}")
+                except Exception as ws_error:
+                    logger.warning(f"Progress WebSocket failed: {ws_error}")
         
         # Continue conversation with agent
         agent_response = await conversational_agent_system.continue_conversation(
@@ -439,34 +441,71 @@ async def trigger_workflow_background(session_id: str, progress_callback):
             progress_callback
         )
         
-        # Send completion via WebSocket
+        # Fix: Extract and prepare data properly
+        workflow_data = None
+        response_data = None
+        
+        if hasattr(response, 'data') and response.data:
+            workflow_data = response.data
+            logger.info(f"📊 Workflow data keys: {list(workflow_data.keys()) if isinstance(workflow_data, dict) else 'Not dict'}")
+        
+        if hasattr(response, 'model_dump'):
+            response_dict = response.model_dump()
+            response_data = response_dict.get('data')
+            if response_data:
+                logger.info(f"📊 Response data keys: {list(response_data.keys()) if isinstance(response_data, dict) else 'Not dict'}")
+        
+        # Use the best available data
+        final_data = workflow_data or response_data
+        
+        # Send completion via WebSocket with detailed logging
         if session_id in active_websockets:
             try:
-                await active_websockets[session_id].send_text(json.dumps({
+                completion_message = {
                     "type": "workflow_completed",
                     "data": {
                         "message": response.message,
                         "state": response.state,
                         "phase": response.phase,
-                        "data": response.data,
-                        "options": response.options
+                        "data": final_data,  # The actual workflow results
+                        "options": getattr(response, 'options', []),
+                        "timestamp": datetime.utcnow().isoformat()
                     }
-                }))
+                }
+                
+                # Debug: Log the message structure
+                logger.info(f"📤 Sending WebSocket completion message structure:")
+                logger.info(f"   - Type: {completion_message['type']}")
+                logger.info(f"   - Data keys: {list(completion_message['data'].keys())}")
+                if final_data:
+                    logger.info(f"   - Workflow data keys: {list(final_data.keys()) if isinstance(final_data, dict) else 'Not dict'}")
+                else:
+                    logger.warning(f"   - No workflow data found!")
+                
+                message_json = json.dumps(completion_message)
+                await active_websockets[session_id].send_text(message_json)
+                logger.info(f"📤 Sent workflow completion to WebSocket: {session_id}")
+                
             except Exception as ws_error:
-                logger.warning(f"WebSocket notification failed: {ws_error}")
+                logger.error(f"❌ WebSocket notification failed: {ws_error}")
+        else:
+            logger.warning(f"⚠️ No WebSocket connection for session: {session_id}")
         
         logger.info(f"✅ Background workflow completed: {session_id}")
         
     except Exception as e:
         logger.error(f"❌ Background workflow failed: {session_id} - {e}")
+        logger.error(f"Exception details: {type(e).__name__}: {str(e)}")
         
         # Send error via WebSocket
         if session_id in active_websockets:
             try:
-                await active_websockets[session_id].send_text(json.dumps({
-                    "type": "workflow_error",
-                    "error": str(e)
-                }))
+                error_message = {
+                    "type": "workflow_error", 
+                    "error": str(e),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                await active_websockets[session_id].send_text(json.dumps(error_message))
             except:
                 pass
 
@@ -652,29 +691,34 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     
     try:
         # Send welcome message
-        await websocket.send_text(json.dumps({
+        welcome_message = {
             "type": "connected",
             "session_id": session_id,
             "timestamp": datetime.utcnow().isoformat(),
             "message": "Real-time updates connected"
-        }))
+        }
+        await websocket.send_text(json.dumps(welcome_message))
+        logger.info(f"📤 Sent welcome message to {session_id}")
         
         while True:
             # Keep connection alive and handle client messages
             data = await websocket.receive_text()
             message = json.loads(data)
+            logger.debug(f"📨 Received WebSocket message: {message.get('type', 'unknown')}")
             
             if message.get("type") == "ping":
-                await websocket.send_text(json.dumps({
+                pong_message = {
                     "type": "pong",
                     "timestamp": datetime.utcnow().isoformat()
-                }))
+                }
+                await websocket.send_text(json.dumps(pong_message))
+                
             elif message.get("type") == "status_request":
                 # Send current session status
                 if conversational_agent_system:
                     context = conversational_agent_system.get_conversation_context(session_id)
                     if context:
-                        await websocket.send_text(json.dumps({
+                        status_message = {
                             "type": "status_update",
                             "data": {
                                 "state": context.state.value,
@@ -682,18 +726,17 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                                 "workflow_started": context.workflow_started,
                                 "message_count": len(context.conversation_history)
                             }
-                        }))
-            elif message.get("type") == "typing":
-                # Handle typing indicators (for future implementation)
-                pass
-                
+                        }
+                        await websocket.send_text(json.dumps(status_message))
+                        
     except WebSocketDisconnect:
         logger.info(f"🔌 WebSocket disconnected: {session_id}")
     except Exception as e:
-        logger.error(f"❌ WebSocket error: {e}")
+        logger.error(f"❌ WebSocket error for {session_id}: {e}")
     finally:
         if session_id in active_websockets:
             del active_websockets[session_id]
+            logger.info(f"🗑️ Cleaned up WebSocket for {session_id}")
 
 # =================== MEDIA SEARCH ENDPOINTS ===================
 

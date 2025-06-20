@@ -336,43 +336,56 @@ class DocumentProcessor:
         """Search user's uploaded documents"""
         
         try:
-            # Search vector database
-            results = self.doc_vector_db.search(
+            # Fix: ChromaDB search without 'where' parameter
+            # Use get() instead for filtering by metadata
+            all_results = self.doc_vector_db.search(
                 query=query,
-                limit=limit,
-                where={"session_id": session_id}
+                limit=limit * 3  # Get more to filter later
             )
             
-            return results
+            # Manual filtering by session_id
+            filtered_results = []
+            for result in all_results:
+                if result.get("metadata", {}).get("session_id") == session_id:
+                    filtered_results.append(result)
+                    if len(filtered_results) >= limit:
+                        break
+            
+            return filtered_results
             
         except Exception as e:
             logger.error(f"❌ Document search failed: {e}")
             return []
-    
+
     def get_session_documents(self, session_id: str) -> List[Dict[str, Any]]:
         """Get all documents for a session"""
         
         try:
-            # Query vector database for session documents
-            results = self.doc_vector_db.search(
-                query="",  # Empty query to get all
-                limit=100,
-                where={"session_id": session_id}
-            )
-            
-            # Group by filename
-            documents = {}
-            for result in results:
-                filename = result["metadata"]["filename"]
-                if filename not in documents:
-                    documents[filename] = {
-                        "filename": filename,
-                        "chunks": 0,
-                        "created_at": result["metadata"]["created_at"]
-                    }
-                documents[filename]["chunks"] += 1
-            
-            return list(documents.values())
+            # Fix: Use collection.get() instead of search() for metadata filtering
+            if hasattr(self.doc_vector_db, 'collection'):
+                collection = self.doc_vector_db.collection
+                # Get all documents and filter manually
+                all_docs = collection.get()
+                
+                # Filter by session_id
+                session_docs = {}
+                if all_docs and "metadatas" in all_docs:
+                    for i, metadata in enumerate(all_docs["metadatas"]):
+                        if metadata.get("session_id") == session_id:
+                            filename = metadata.get("filename")
+                            if filename not in session_docs:
+                                session_docs[filename] = {
+                                    "filename": filename,
+                                    "chunks": 0,
+                                    "created_at": metadata.get("created_at")
+                                }
+                            session_docs[filename]["chunks"] += 1
+                
+                return list(session_docs.values())
+            else:
+                # Fallback: return empty list
+                logger.warning("ChromaDB collection not accessible")
+                return []
             
         except Exception as e:
             logger.error(f"❌ Failed to get session documents: {e}")
