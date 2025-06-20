@@ -9,6 +9,7 @@ import asyncio
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
+from dotenv import load_dotenv
 
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
@@ -18,6 +19,9 @@ from pydantic import BaseModel, Field
 from loguru import logger
 
 from database import media_db, MediaOutletResponse
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path=".env")
 
 # =================== CONFIGURATION ===================
 
@@ -38,39 +42,53 @@ PACKAGE_PRICES = {
         "price": int(os.getenv("STARTER_PACKAGE_PRICE", "12000000")),
         "media_count": int(os.getenv("STARTER_MEDIA_COUNT", "3")),
         "timeline": "1-3 ngày làm việc",
-        "features": ["Chỉnh sửa nhẹ nội dung", "2-3 báo tier-2", "Báo cáo cơ bản"]
+        "features": ["Chỉnh sửa nhẹ nội dung", "2-3 báo tier-2", "Báo cáo cơ bản"],
     },
     "Standard": {
         "price": int(os.getenv("STANDARD_PACKAGE_PRICE", "30000000")),
         "media_count": int(os.getenv("STANDARD_MEDIA_COUNT", "15")),
         "timeline": "5-7 ngày làm việc",
-        "features": ["Viết bài hoàn chỉnh", "12-15 báo bao gồm tier-1", "Báo cáo chi tiết"]
+        "features": [
+            "Viết bài hoàn chỉnh",
+            "12-15 báo bao gồm tier-1",
+            "Báo cáo chi tiết",
+        ],
     },
     "Premium": {
         "price": int(os.getenv("PREMIUM_PACKAGE_PRICE", "50000000")),
         "media_count": int(os.getenv("PREMIUM_MEDIA_COUNT", "18")),
-        "timeline": "10-14 ngày làm việc", 
-        "features": ["Chiến lược + viết bài", "15-18 báo + phỏng vấn", "Social media"]
-    }
+        "timeline": "10-14 ngày làm việc",
+        "features": ["Chiến lược + viết bài", "15-18 báo + phỏng vấn", "Social media"],
+    },
 }
 
 # =================== STRUCTURED OUTPUT MODELS ===================
 
+
 class ContentAnalysis(BaseModel):
     """Structured output for content analysis agent"""
+
     language: str = Field(description="Detected language: Vietnamese/English/Both")
     primary_topics: List[str] = Field(description="Main topics/categories (max 5)")
-    target_audiences: List[str] = Field(description="Identified target audiences (max 4)")
+    target_audiences: List[str] = Field(
+        description="Identified target audiences (max 4)"
+    )
     keywords: List[str] = Field(description="Key search terms (max 10)")
     content_tone: str = Field(description="Professional/Technical/Casual/Formal")
     urgency_level: str = Field(description="Low/Medium/High")
-    industry_sector: str = Field(description="Main industry: Tech/Finance/Healthcare/etc")
-    press_release_type: str = Field(description="Product Launch/Partnership/Funding/Event/Other")
+    industry_sector: str = Field(
+        description="Main industry: Tech/Finance/Healthcare/etc"
+    )
+    press_release_type: str = Field(
+        description="Product Launch/Partnership/Funding/Event/Other"
+    )
     geographic_scope: str = Field(description="Local/National/International")
     confidence_score: float = Field(description="Analysis confidence 0-1", ge=0, le=1)
 
+
 class MediaRecommendation(BaseModel):
     """Structured output for media recommendation"""
+
     media_outlet_id: int = Field(description="Database ID of recommended media")
     media_name: str = Field(description="Name of media outlet")
     matching_score: float = Field(description="Relevance score 0-1", ge=0, le=1)
@@ -82,8 +100,10 @@ class MediaRecommendation(BaseModel):
     topic_overlap: float = Field(description="Topic alignment 0-1", ge=0, le=1)
     audience_fit: float = Field(description="Audience match 0-1", ge=0, le=1)
 
+
 class PricingAnalysis(BaseModel):
     """Structured output for pricing optimization"""
+
     recommended_package: str = Field(description="Starter/Standard/Premium")
     total_cost_vnd: float = Field(description="Total estimated cost", ge=0)
     package_price_vnd: float = Field(description="Package base price", ge=0)
@@ -95,22 +115,29 @@ class PricingAnalysis(BaseModel):
     roi_projection: str = Field(description="Expected ROI description")
     alternative_packages: List[str] = Field(description="Other viable options")
 
+
 class ExecutiveReport(BaseModel):
     """Structured output for executive summary"""
+
     executive_summary: str = Field(description="2-3 sentence overview")
     strategic_objectives: List[str] = Field(description="Key goals achieved (max 4)")
     media_strategy: str = Field(description="Overall media approach")
     success_metrics: List[str] = Field(description="KPIs to track (max 5)")
     implementation_steps: List[str] = Field(description="Next actions (max 6)")
-    risk_mitigation: List[str] = Field(description="Potential risks & solutions (max 3)")
+    risk_mitigation: List[str] = Field(
+        description="Potential risks & solutions (max 3)"
+    )
     competitive_advantage: str = Field(description="How this differentiates")
     timeline_summary: str = Field(description="Key milestones")
 
+
 # =================== DEPENDENCY INJECTION ===================
+
 
 @dataclass
 class AgentDependencies:
     """Shared context for all agents"""
+
     user_input: str
     budget: float
     session_id: str
@@ -118,41 +145,42 @@ class AgentDependencies:
     available_media: List[MediaOutletResponse] = None
     vector_search_results: Optional[Dict] = None
 
+
 # =================== SPECIALIZED AGENTS ===================
+
 
 class InstantMediaReleaseAgents:
     """Production-grade multi-agent system for media release automation"""
-    
+
     def __init__(self):
         """Initialize all agents with production configuration"""
-        
+
         # Validate configuration
         if not OPENAI_API_KEY:
             raise ValueError("❌ OPENAI_API_KEY environment variable is required")
-        
+
         # Initialize OpenAI model with optimized settings
         self.llm = OpenAIChat(
             id=OPENAI_MODEL,
             api_key=OPENAI_API_KEY,
             temperature=OPENAI_TEMPERATURE,
             max_tokens=OPENAI_MAX_TOKENS,
-            timeout=AGENT_TIMEOUT
+            timeout=AGENT_TIMEOUT,
         )
-        
+
         # Agent memory storage
         self.storage = SqliteAgentStorage(
-            table_name="instant_media_agents",
-            db_file="./agent_memory.db"
+            table_name="instant_media_agents", db_file="./agent_memory.db"
         )
-        
+
         # Initialize specialized agents
         self.content_analyzer = self._create_content_analyzer()
         self.media_matcher = self._create_media_matcher()
         self.pricing_optimizer = self._create_pricing_optimizer()
         self.report_generator = self._create_report_generator()
-        
+
         logger.info("✅ Instant Media Release multi-agent system initialized")
-    
+
     def _create_content_analyzer(self) -> Agent:
         """Agent 1: Vietnamese content analysis specialist"""
         return Agent(
@@ -172,15 +200,17 @@ class InstantMediaReleaseAgents:
                 "Assess content tone, urgency, and geographic scope",
                 "Provide confidence score for your analysis",
                 "Focus on Vietnamese market nuances and business culture",
-                "Consider SME-specific communication needs"
+                "Consider SME-specific communication needs",
             ],
             response_model=ContentAnalysis,
             storage=self.storage,
             session_id="content_analysis",
             show_tool_calls=False,
-            markdown=False
+            markdown=False,
+            exponential_backoff=True,
+            retries=MAX_RETRIES,
         )
-    
+
     def _create_media_matcher(self) -> Agent:
         """Agent 2: Media database expert with Vietnamese market knowledge"""
         return Agent(
@@ -201,16 +231,18 @@ class InstantMediaReleaseAgents:
                 "Factor in publication success rates and response times",
                 "Provide clear reasoning for each recommendation",
                 "Optimize for maximum reach within budget",
-                "Consider media mix for comprehensive coverage"
+                "Consider media mix for comprehensive coverage",
             ],
             tools=[DuckDuckGoTools()],
             response_model=MediaRecommendation,
             storage=self.storage,
             session_id="media_matching",
             show_tool_calls=True,
-            markdown=False
+            markdown=False,
+            exponential_backoff=True,
+            retries=MAX_RETRIES,
         )
-    
+
     def _create_pricing_optimizer(self) -> Agent:
         """Agent 3: Pricing strategy and package optimization specialist"""
         return Agent(
@@ -232,19 +264,21 @@ class InstantMediaReleaseAgents:
                 "Calculate budget utilization percentage",
                 "Suggest alternative packages if budget doesn't fit",
                 "Project ROI based on reach and industry benchmarks",
-                "Consider cost-per-impression for value analysis"
+                "Consider cost-per-impression for value analysis",
             ],
             response_model=PricingAnalysis,
             storage=self.storage,
             session_id="pricing_optimization",
             show_tool_calls=False,
-            markdown=False
+            markdown=False,
+            exponential_backoff=True,
+            retries=MAX_RETRIES,
         )
-    
+
     def _create_report_generator(self) -> Agent:
         """Agent 4: Executive report writer and strategic advisor"""
         return Agent(
-            name="ReportGenerator", 
+            name="ReportGenerator",
             role="Senior PR consultant and executive report writer",
             model=self.llm,
             description="""
@@ -258,19 +292,21 @@ class InstantMediaReleaseAgents:
                 "Present recommendations in decision-maker friendly format",
                 "Define clear success metrics and KPIs",
                 "Provide actionable implementation roadmap",
-                "Address potential risks and mitigation strategies", 
+                "Address potential risks and mitigation strategies",
                 "Highlight competitive advantages of the approach",
                 "Use confident, professional tone suitable for executives",
                 "Focus on business outcomes and ROI",
-                "Include timeline with key milestones"
+                "Include timeline with key milestones",
             ],
             response_model=ExecutiveReport,
             storage=self.storage,
             session_id="executive_reports",
             show_tool_calls=False,
-            markdown=False
+            markdown=False,
+            exponential_backoff=True,
+            retries=MAX_RETRIES,
         )
-    
+
     async def analyze_content(self, deps: AgentDependencies) -> ContentAnalysis:
         """Step 1: Deep content analysis"""
         try:
@@ -291,13 +327,15 @@ class InstantMediaReleaseAgents:
             
             Provide structured analysis with high confidence scoring.
             """
-            
+
             logger.info("🔍 Content analysis started...")
             result = await self.content_analyzer.arun(prompt)
-            logger.info(f"✅ Content analysis completed - Confidence: {result.confidence_score:.2f}")
-            
+            logger.info(
+                f"✅ Content analysis completed - Confidence: {result.confidence_score:.2f}"
+            )
+
             return result
-            
+
         except Exception as e:
             logger.error(f"❌ Content analysis failed: {e}")
             # Return fallback analysis
@@ -311,10 +349,12 @@ class InstantMediaReleaseAgents:
                 industry_sector="General",
                 press_release_type="Other",
                 geographic_scope="National",
-                confidence_score=0.5
+                confidence_score=0.5,
             )
-    
-    async def find_matching_media(self, deps: AgentDependencies) -> List[MediaRecommendation]:
+
+    async def find_matching_media(
+        self, deps: AgentDependencies
+    ) -> List[MediaRecommendation]:
         """Step 2: Intelligent media matching with vector search"""
         try:
             # Prepare search query from content analysis
@@ -322,32 +362,40 @@ class InstantMediaReleaseAgents:
                 search_query = f"{' '.join(deps.content_analysis.primary_topics)} {' '.join(deps.content_analysis.target_audiences)} {deps.content_analysis.industry_sector}"
             else:
                 search_query = "business media vietnam"
-            
+
             # Perform vector search
-            vector_results = await media_db.search_media_by_vector(search_query, limit=15)
+            vector_results = await media_db.search_media_by_vector(
+                search_query, limit=15
+            )
             deps.vector_search_results = vector_results
-            
+
             # Get detailed media information
             media_candidates = []
-            if vector_results and "metadatas" in vector_results and vector_results["metadatas"]:
+            if (
+                vector_results
+                and "metadatas" in vector_results
+                and vector_results["metadatas"]
+            ):
                 for metadata in vector_results["metadatas"][0]:
                     if "media_id" in metadata:
                         media_id = int(metadata["media_id"])
                         media = await media_db.get_media_by_id(media_id)
                         if media and media.is_active:
-                            media_candidates.append({
-                                "id": media.id,
-                                "name": media.name,
-                                "tier": media.tier,
-                                "cost": media.cost_per_article,
-                                "circulation": media.circulation,
-                                "topics": json.loads(media.topics),
-                                "audiences": json.loads(media.target_audience),
-                                "language": media.language,
-                                "success_rate": media.success_rate,
-                                "response_time": media.response_time_hours
-                            })
-            
+                            media_candidates.append(
+                                {
+                                    "id": media.id,
+                                    "name": media.name,
+                                    "tier": media.tier,
+                                    "cost": media.cost_per_article,
+                                    "circulation": media.circulation,
+                                    "topics": json.loads(media.topics),
+                                    "audiences": json.loads(media.target_audience),
+                                    "language": media.language,
+                                    "success_rate": media.success_rate,
+                                    "response_time": media.response_time_hours,
+                                }
+                            )
+
             # Fallback to all media if vector search fails
             if not media_candidates:
                 all_media = await media_db.get_all_media_outlets()
@@ -362,11 +410,11 @@ class InstantMediaReleaseAgents:
                         "audiences": m.target_audience,
                         "language": m.language,
                         "success_rate": m.success_rate,
-                        "response_time": m.response_time_hours
+                        "response_time": m.response_time_hours,
                     }
                     for m in all_media[:10]  # Limit to top 10
                 ]
-            
+
             prompt = f"""
             Find the best Vietnamese media outlets for this content:
             
@@ -385,18 +433,20 @@ class InstantMediaReleaseAgents:
             Prioritize tier-1 outlets but include cost-effective tier-2 options.
             Provide detailed reasoning for each recommendation.
             """
-            
+
             logger.info("🎯 Media matching started...")
-            
+
             # Process multiple recommendations in parallel if enabled
             if PARALLEL_PROCESSING and len(media_candidates) > 5:
                 tasks = []
                 for i in range(min(6, len(media_candidates))):
                     task = self.media_matcher.arun(prompt)
                     tasks.append(task)
-                
+
                 results = await asyncio.gather(*tasks, return_exceptions=True)
-                recommendations = [r for r in results if isinstance(r, MediaRecommendation)]
+                recommendations = [
+                    r for r in results if isinstance(r, MediaRecommendation)
+                ]
             else:
                 # Sequential processing
                 recommendations = []
@@ -404,7 +454,7 @@ class InstantMediaReleaseAgents:
                     result = await self.media_matcher.arun(prompt)
                     if result:
                         recommendations.append(result)
-            
+
             # Deduplicate by media_outlet_id and sort by score
             seen_ids = set()
             unique_recommendations = []
@@ -412,22 +462,26 @@ class InstantMediaReleaseAgents:
                 if rec.media_outlet_id not in seen_ids:
                     seen_ids.add(rec.media_outlet_id)
                     unique_recommendations.append(rec)
-            
+
             # Sort by matching score
             unique_recommendations.sort(key=lambda x: x.matching_score, reverse=True)
-            
-            logger.info(f"✅ Media matching completed - Found {len(unique_recommendations)} recommendations")
+
+            logger.info(
+                f"✅ Media matching completed - Found {len(unique_recommendations)} recommendations"
+            )
             return unique_recommendations[:8]  # Return top 8
-            
+
         except Exception as e:
             logger.error(f"❌ Media matching failed: {e}")
             return []
-    
-    async def optimize_pricing(self, deps: AgentDependencies, recommendations: List[MediaRecommendation]) -> PricingAnalysis:
+
+    async def optimize_pricing(
+        self, deps: AgentDependencies, recommendations: List[MediaRecommendation]
+    ) -> PricingAnalysis:
         """Step 3: Intelligent pricing optimization"""
         try:
             total_media_cost = sum(rec.cost_vnd for rec in recommendations)
-            
+
             prompt = f"""
             Optimize pricing strategy for this media campaign:
             
@@ -459,13 +513,15 @@ class InstantMediaReleaseAgents:
             
             Ensure total costs (package + media) stay within budget.
             """
-            
+
             logger.info("💰 Pricing optimization started...")
             result = await self.pricing_optimizer.arun(prompt)
-            logger.info(f"✅ Pricing optimization completed - Package: {result.recommended_package}")
-            
+            logger.info(
+                f"✅ Pricing optimization completed - Package: {result.recommended_package}"
+            )
+
             return result
-            
+
         except Exception as e:
             logger.error(f"❌ Pricing optimization failed: {e}")
             # Return fallback pricing
@@ -479,15 +535,15 @@ class InstantMediaReleaseAgents:
                 budget_utilization=1.0,
                 cost_efficiency="Moderate efficiency",
                 roi_projection="Positive ROI expected",
-                alternative_packages=["Starter", "Premium"]
+                alternative_packages=["Starter", "Premium"],
             )
-    
+
     async def generate_executive_report(
         self,
         deps: AgentDependencies,
         content_analysis: ContentAnalysis,
         recommendations: List[MediaRecommendation],
-        pricing: PricingAnalysis
+        pricing: PricingAnalysis,
     ) -> ExecutiveReport:
         """Step 4: Generate comprehensive executive report"""
         try:
@@ -521,68 +577,70 @@ class InstantMediaReleaseAgents:
             Write for C-level executives who need clear, actionable insights.
             Focus on business value and strategic outcomes.
             """
-            
+
             logger.info("📋 Executive report generation started...")
             result = await self.report_generator.arun(prompt)
             logger.info("✅ Executive report completed")
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"❌ Executive report generation failed: {e}")
             # Return fallback report
             return ExecutiveReport(
                 executive_summary="Media strategy developed for comprehensive market coverage within budget.",
-                strategic_objectives=["Increase brand awareness", "Generate media coverage"],
+                strategic_objectives=[
+                    "Increase brand awareness",
+                    "Generate media coverage",
+                ],
                 media_strategy="Multi-tier approach targeting Vietnamese media landscape",
                 success_metrics=["Media mentions", "Reach metrics", "Engagement rates"],
-                implementation_steps=["Finalize content", "Submit to media", "Monitor coverage"],
+                implementation_steps=[
+                    "Finalize content",
+                    "Submit to media",
+                    "Monitor coverage",
+                ],
                 risk_mitigation=["Backup media options", "Timeline flexibility"],
                 competitive_advantage="Strategic media mix with tier-1 coverage",
-                timeline_summary=pricing.timeline_days
+                timeline_summary=pricing.timeline_days,
             )
-    
+
     async def process_complete_request(
-        self,
-        user_input: str,
-        budget: float,
-        session_id: str
+        self, user_input: str, budget: float, session_id: str
     ) -> Dict[str, Any]:
         """End-to-end processing through all 4 agents"""
-        
+
         start_time = datetime.utcnow()
         logger.info(f"🚀 Processing complete request for session: {session_id}")
-        
+
         try:
             # Initialize dependencies
             deps = AgentDependencies(
-                user_input=user_input,
-                budget=budget,
-                session_id=session_id
+                user_input=user_input, budget=budget, session_id=session_id
             )
-            
+
             # Step 1: Content Analysis
             logger.info("📊 Step 1: Content Analysis")
             content_analysis = await self.analyze_content(deps)
             deps.content_analysis = content_analysis
-            
+
             # Step 2: Media Matching
             logger.info("🎯 Step 2: Media Matching")
             recommendations = await self.find_matching_media(deps)
-            
+
             # Step 3: Pricing Optimization
             logger.info("💰 Step 3: Pricing Optimization")
             pricing = await self.optimize_pricing(deps, recommendations)
-            
+
             # Step 4: Executive Report
             logger.info("📋 Step 4: Executive Report")
             executive_report = await self.generate_executive_report(
                 deps, content_analysis, recommendations, pricing
             )
-            
+
             # Calculate processing time
             processing_time = (datetime.utcnow() - start_time).total_seconds()
-            
+
             # Compile final result
             result = {
                 "session_id": session_id,
@@ -597,23 +655,24 @@ class InstantMediaReleaseAgents:
                     "media_count": len(recommendations),
                     "timeline": pricing.timeline_days,
                     "budget_utilization": pricing.budget_utilization,
-                    "confidence_score": content_analysis.confidence_score
+                    "confidence_score": content_analysis.confidence_score,
                 },
                 "timestamp": datetime.utcnow().isoformat(),
-                "agent_system": "Instant Media Release v2.0"
+                "agent_system": "Instant Media Release v2.0",
             }
-            
+
             logger.info(f"✅ Complete processing finished in {processing_time:.2f}s")
             return result
-            
+
         except Exception as e:
             logger.error(f"❌ Complete processing failed: {e}")
             return {
                 "session_id": session_id,
                 "error": str(e),
                 "timestamp": datetime.utcnow().isoformat(),
-                "success": False
+                "success": False,
             }
+
 
 # =================== GLOBAL AGENT SYSTEM ===================
 
@@ -627,14 +686,15 @@ except Exception as e:
 
 # =================== TESTING ===================
 
+
 async def test_agent_system():
     """Comprehensive test of the agent system"""
     if not agent_system:
         logger.error("❌ Agent system not available for testing")
         return
-    
+
     logger.info("🧪 Testing Instant Media Release Agent System...")
-    
+
     test_input = """
     Công ty chúng tôi vừa phát triển xong ứng dụng VietPay - 
     giải pháp thanh toán di động mới dành riêng cho các doanh nghiệp SME tại Việt Nam.
@@ -647,26 +707,31 @@ async def test_agent_system():
     
     Target chính là các chủ doanh nghiệp nhỏ, quản lý tài chính, và cộng đồng fintech.
     """
-    
+
     try:
         result = await agent_system.process_complete_request(
             user_input=test_input,
             budget=35000000,  # 35M VND
-            session_id="test_session_001"
+            session_id="test_session_001",
         )
-        
+
         logger.info("📊 Test Results:")
         logger.info(f"Processing Time: {result.get('processing_time_seconds', 0):.2f}s")
-        logger.info(f"Recommended Package: {result.get('summary', {}).get('recommended_package')}")
+        logger.info(
+            f"Recommended Package: {result.get('summary', {}).get('recommended_package')}"
+        )
         logger.info(f"Media Count: {result.get('summary', {}).get('media_count')}")
-        logger.info(f"Budget Utilization: {result.get('summary', {}).get('budget_utilization', 0):.1%}")
-        
+        logger.info(
+            f"Budget Utilization: {result.get('summary', {}).get('budget_utilization', 0):.1%}"
+        )
+
         logger.info("✅ Agent system test completed successfully!")
         return result
-        
+
     except Exception as e:
         logger.error(f"❌ Agent system test failed: {e}")
         return None
+
 
 # if __name__ == "__main__":
 #     # Run agent system tests
