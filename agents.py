@@ -3,7 +3,8 @@ Instant Media Release - Conversational Multi-Agent System
 Advanced interactive AI agents with real-time user collaboration
 Enhanced with state management and workflow coordination
 """
-
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
 import os
 import json
 import asyncio
@@ -26,10 +27,10 @@ from services import StrategyOptimizerService # NEW: Import the optimizer servic
 # =================== CONFIGURATION ===================
 
 # OpenAI Configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "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")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
-OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
-OPENAI_MAX_TOKENS = int(os.getenv("OPENAI_MAX_TOKENS", "4000"))
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL")
+OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE"))
+OPENAI_MAX_TOKENS = int(os.getenv("OPENAI_MAX_TOKENS"))
 
 # Groq Configuration (Alternative)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
