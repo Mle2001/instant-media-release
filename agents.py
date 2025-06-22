@@ -25,7 +25,7 @@ from document_processor import get_document_processor
 # =================== CONFIGURATION ===================
 
 # OpenAI Configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "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")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
 OPENAI_MAX_TOKENS = int(os.getenv("OPENAI_MAX_TOKENS", "4000"))
@@ -127,18 +127,6 @@ class ConversationContext:
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
 # =================== STRUCTURED OUTPUT MODELS ===================
-
-# class ConversationResponse(BaseModel):
-#     """Structured conversation response"""
-#     message: str = Field(description="Response message to user")
-#     state: str = Field(description="Current conversation state")
-#     phase: str = Field(description="Current workflow phase")
-#     suggestions: List[str] = Field(description="Suggested user actions", default=[])
-#     options: List[str] = Field(description="Available options for user", default=[])
-#     progress: Optional[Dict] = Field(description="Progress information", default=None)
-#     data: Optional[Dict] = Field(description="Additional data", default=None)
-#     requires_input: bool = Field(description="Whether user input is required", default=True)
-#     can_proceed: bool = Field(description="Whether workflow can proceed", default=False)
 
 class ConversationResponse(BaseModel):
     """
