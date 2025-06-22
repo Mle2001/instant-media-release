@@ -5,3 +5,4 @@ logs/
 .venv/
 agent_memory.db
 .env
+./github/**
