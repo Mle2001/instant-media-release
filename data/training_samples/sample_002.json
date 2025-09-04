@@ -1,0 +1,21 @@
+{
+  "enterprise_id": "SAMPLE002", 
+  "campaign_id": "CAMP002",
+  "content_text": "Technology startup product launch focusing on AI and machine learning solutions for enterprise clients",
+  "industry": "technology",
+  "budget": 30000000,
+  "target_audience": ["tech_professionals", "enterprises", "investors"],
+  "campaign_metrics": {
+    "reach": 20000000,
+    "engagement_rate": 0.052,
+    "click_through_rate": 0.028,
+    "conversion_rate": 0.015,
+    "roi": 165.8
+  },
+  "media_outlets_used": [
+    {"name": "VnExpress", "effectiveness": 9.1},
+    {"name": "CafeF", "effectiveness": 8.7},
+    {"name": "GenK", "effectiveness": 8.9}
+  ],
+  "timestamp": "2025-08-21T11:30:00Z"
+}

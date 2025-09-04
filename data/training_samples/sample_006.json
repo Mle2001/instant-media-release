@@ -1,0 +1,34 @@
+{
+  "enterprise_id": "SAMPLE006",
+  "campaign_id": "CAMP006",
+  "content_text": "Sample campaign 6 for healthcare industry targeting specific audience segments",
+  "industry": "healthcare",
+  "budget": 22000000,
+  "target_audience": [
+    "professionals",
+    "consumers",
+    "businesses"
+  ],
+  "campaign_metrics": {
+    "reach": 11000000,
+    "engagement_rate": 0.048,
+    "click_through_rate": 0.027,
+    "conversion_rate": 0.014,
+    "roi": 168.0
+  },
+  "media_outlets_used": [
+    {
+      "name": "VnExpress",
+      "effectiveness": 8.2
+    },
+    {
+      "name": "24H",
+      "effectiveness": 8.0
+    },
+    {
+      "name": "Dantri",
+      "effectiveness": 8.280000000000001
+    }
+  ],
+  "timestamp": "2025-08-15T15:32:21.705966Z"
+}

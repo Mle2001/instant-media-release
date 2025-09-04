@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Read(/D:\\pythonlearn\\instant-media-release\\ml_ranking_system/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release\\ml_ranking_system/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Read(/d:\\pythonlearn\\A\\presentation/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release\\ml_ranking_system/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release\\ml_ranking_system/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release\\ml_ranking_system/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Bash(git commit:*)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)",
+      "Read(/D:\\pythonlearn\\instant-media-release/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "enterprise_id": "SAMPLE001",
+  "campaign_id": "CAMP001",
+  "content_text": "Launch campaign for AI-powered healthcare platform targeting medical professionals and patients",
+  "industry": "healthcare",
+  "budget": 25000000,
+  "target_audience": ["healthcare_professionals", "patients"],
+  "campaign_metrics": {
+    "reach": 15000000,
+    "engagement_rate": 0.045,
+    "click_through_rate": 0.023,
+    "conversion_rate": 0.012,
+    "roi": 145.5
+  },
+  "media_outlets_used": [
+    {"name": "VnExpress", "effectiveness": 8.5},
+    {"name": "SucKhoe", "effectiveness": 9.2},
+    {"name": "YTe", "effectiveness": 7.8}
+  ],
+  "timestamp": "2025-08-21T12:00:00Z"
+}

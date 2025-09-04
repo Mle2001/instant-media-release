@@ -1,0 +1,32 @@
+{
+  "enterprise_id": "SAMPLE005",
+  "campaign_id": "CAMP005",
+  "content_text": "Sample campaign 5 for technology industry targeting specific audience segments",
+  "industry": "technology",
+  "budget": 20000000,
+  "target_audience": [
+    "businesses"
+  ],
+  "campaign_metrics": {
+    "reach": 10000000,
+    "engagement_rate": 0.045,
+    "click_through_rate": 0.025,
+    "conversion_rate": 0.013000000000000001,
+    "roi": 160.0
+  },
+  "media_outlets_used": [
+    {
+      "name": "VnExpress",
+      "effectiveness": 8.0
+    },
+    {
+      "name": "24H",
+      "effectiveness": 7.75
+    },
+    {
+      "name": "Dantri",
+      "effectiveness": 8.1
+    }
+  ],
+  "timestamp": "2025-08-16T15:32:21.705966Z"
+}

@@ -1,0 +1,33 @@
+{
+  "enterprise_id": "SAMPLE007",
+  "campaign_id": "CAMP007",
+  "content_text": "Sample campaign 7 for finance industry targeting specific audience segments",
+  "industry": "finance",
+  "budget": 24000000,
+  "target_audience": [
+    "consumers",
+    "businesses"
+  ],
+  "campaign_metrics": {
+    "reach": 12000000,
+    "engagement_rate": 0.051000000000000004,
+    "click_through_rate": 0.028999999999999998,
+    "conversion_rate": 0.015,
+    "roi": 176.0
+  },
+  "media_outlets_used": [
+    {
+      "name": "VnExpress",
+      "effectiveness": 8.4
+    },
+    {
+      "name": "24H",
+      "effectiveness": 8.25
+    },
+    {
+      "name": "Dantri",
+      "effectiveness": 8.46
+    }
+  ],
+  "timestamp": "2025-08-14T15:32:21.705966Z"
+}

@@ -1,0 +1,105 @@
+# ML-Enhanced Ranking System Configuration
+
+# Model Configuration
+model:
+  name: "MediaRankingLSTM"
+  version: "1.0.0"
+  base_model: "vinai/phobert-base"
+  
+  # Architecture parameters
+  lstm_hidden_size: 256
+  lstm_num_layers: 2
+  lstm_dropout: 0.2
+  lstm_bidirectional: true
+  
+  # Attention parameters
+  attention_heads: 8
+  attention_dropout: 0.1
+  
+  # Feature dimensions  
+  universal_features_dim: 64
+  content_embedding_dim: 768
+  total_feature_dim: 832
+
+# Training Configuration
+training:
+  batch_size: 32
+  learning_rate: 0.001
+  epochs: 50
+  validation_split: 0.2
+  early_stopping_patience: 10
+  
+  # Fine-tuning parameters
+  fine_tune_learning_rate: 0.00001
+  fine_tune_epochs: 10
+  fine_tune_frozen_layers: 8
+
+# Continuous Learning
+continuous_learning:
+  min_samples_for_retrain: 5
+  retrain_frequency_days: 1
+  performance_threshold: 0.02
+  max_model_versions: 10
+  
+  # A/B Testing
+  ab_test_duration_days: 7
+  ab_test_traffic_percentage: 0.05
+  
+  # Deployment stages
+  deployment_stages: [0.1, 0.25, 0.5, 0.75, 1.0]
+  stage_monitoring_hours: 48
+
+# Data Processing
+data:
+  # Universal features configuration
+  feature_extraction:
+    content_max_length: 512
+    keyword_max_count: 10
+    topic_max_count: 5
+    
+  # Ground truth computation weights
+  ground_truth_weights:
+    media_performance: 0.4
+    business_impact: 0.3
+    audience_engagement: 0.2
+    cost_efficiency: 0.1
+    
+  # Data validation
+  validation:
+    min_campaign_duration_days: 3
+    min_revenue_threshold: 1000000  # VND
+    required_media_metrics: ["actual_reach", "engagement_metrics"]
+    required_business_metrics: ["revenue_generated", "leads_generated"]
+
+# Model Safety & Validation
+safety:
+  accuracy_threshold: 0.85
+  bias_threshold: 0.1
+  robustness_threshold: 0.8
+  latency_threshold_ms: 500
+  memory_threshold_mb: 512
+  
+  # Catastrophic failure detection
+  max_score_deviation: 0.3
+  min_valid_predictions_percentage: 0.95
+
+# Monitoring & Alerting
+monitoring:
+  metrics_collection_interval_minutes: 5
+  performance_check_interval_hours: 1
+  drift_detection_window_days: 7
+  
+  # Alert thresholds
+  alerts:
+    accuracy_drop_threshold: 0.05
+    latency_spike_threshold: 1000  # ms
+    error_rate_threshold: 0.01
+    drift_score_threshold: 0.15
+
+# Storage Paths
+storage:
+  models_dir: "./models"
+  training_data_dir: "./data/training_samples"
+  feedback_queue_dir: "./data/feedback_queue"
+  validation_results_dir: "./data/validation_results"
+  logs_dir: "./logs/ml_system"

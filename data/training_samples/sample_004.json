@@ -1,0 +1,33 @@
+{
+  "enterprise_id": "SAMPLE004",
+  "campaign_id": "CAMP004",
+  "content_text": "Sample campaign 4 for food_beverage industry targeting specific audience segments",
+  "industry": "food_beverage",
+  "budget": 18000000,
+  "target_audience": [
+    "consumers",
+    "businesses"
+  ],
+  "campaign_metrics": {
+    "reach": 9000000,
+    "engagement_rate": 0.041999999999999996,
+    "click_through_rate": 0.023,
+    "conversion_rate": 0.012,
+    "roi": 152.0
+  },
+  "media_outlets_used": [
+    {
+      "name": "VnExpress",
+      "effectiveness": 7.8
+    },
+    {
+      "name": "24H",
+      "effectiveness": 7.5
+    },
+    {
+      "name": "Dantri",
+      "effectiveness": 7.92
+    }
+  ],
+  "timestamp": "2025-08-17T15:32:21.705966Z"
+}

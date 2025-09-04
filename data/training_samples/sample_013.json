@@ -1,0 +1,33 @@
+{
+  "enterprise_id": "SAMPLE013",
+  "campaign_id": "CAMP013",
+  "content_text": "Sample campaign 13 for education industry targeting specific audience segments",
+  "industry": "education",
+  "budget": 36000000,
+  "target_audience": [
+    "consumers",
+    "businesses"
+  ],
+  "campaign_metrics": {
+    "reach": 18000000,
+    "engagement_rate": 0.069,
+    "click_through_rate": 0.041,
+    "conversion_rate": 0.021,
+    "roi": 224.0
+  },
+  "media_outlets_used": [
+    {
+      "name": "VnExpress",
+      "effectiveness": 9.6
+    },
+    {
+      "name": "24H",
+      "effectiveness": 9.75
+    },
+    {
+      "name": "Dantri",
+      "effectiveness": 9.54
+    }
+  ],
+  "timestamp": "2025-08-08T15:32:21.705966Z"
+}

@@ -1,0 +1,18 @@
+{
+  "model_path": "models\\media_ranking_lstm_v20250821_200306.pth",
+  "validation_results": {
+    "accuracy_score": 0.88,
+    "r2_score": 0.88,
+    "mae_score": 0.12,
+    "bias_score": 0.05,
+    "robustness_score": 0.85,
+    "business_impact_score": 0.85,
+    "edge_case_score": 0.8,
+    "improvement": 0.09999999999999998,
+    "confidence_interval": [
+      0.83,
+      0.93
+    ],
+    "validation_timestamp": "2025-08-21T20:03:13.884766"
+  }
+}

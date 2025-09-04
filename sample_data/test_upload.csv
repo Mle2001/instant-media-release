@@ -1,0 +1,3 @@
+campaign_title,campaign_type,industry,budget,total_articles_published,total_media_reach,lead_generation,sales_conversion,roi_percentage,ground_truth_score
+Test Campaign 1 - AI Chatbot Launch,product_launch,artificial_intelligence,50000000,5,150000,1200,36,400.0,0.85
+Test Campaign 2 - Mobile App Release,product_launch,mobile_technology,75000000,7,220000,1800,54,500.0,0.9

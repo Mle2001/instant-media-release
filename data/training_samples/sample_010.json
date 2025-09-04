@@ -1,0 +1,33 @@
+{
+  "enterprise_id": "SAMPLE010",
+  "campaign_id": "CAMP010",
+  "content_text": "Sample campaign 10 for technology industry targeting specific audience segments",
+  "industry": "technology",
+  "budget": 30000000,
+  "target_audience": [
+    "consumers",
+    "businesses"
+  ],
+  "campaign_metrics": {
+    "reach": 15000000,
+    "engagement_rate": 0.06,
+    "click_through_rate": 0.035,
+    "conversion_rate": 0.018000000000000002,
+    "roi": 200.0
+  },
+  "media_outlets_used": [
+    {
+      "name": "VnExpress",
+      "effectiveness": 9.0
+    },
+    {
+      "name": "24H",
+      "effectiveness": 9.0
+    },
+    {
+      "name": "Dantri",
+      "effectiveness": 9.0
+    }
+  ],
+  "timestamp": "2025-08-11T15:32:21.705966Z"
+}

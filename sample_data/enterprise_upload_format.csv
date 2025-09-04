@@ -1,0 +1,6 @@
+campaign_title,campaign_type,industry,budget,total_articles_published,total_media_reach,lead_generation,sales_conversion,roi_percentage,ground_truth_score
+"Ra mắt ứng dụng EduTech cho học sinh THPT - Q1/2025",product_launch,education_technology,25000000,4,123000,1200,34,500.0,0.92
+"Khuyến mãi Black Friday 2024 - Shop thời trang ABC",promotion_campaign,fashion_retail,40000000,3,118000,2500,105,650.0,0.88
+"IPO công ty Fintech XYZ tại HOSE",financial_announcement,financial_technology,60000000,4,183000,800,13,733.3,0.95
+"Festival ẩm thực Tết Nguyên Đán 2025",event_marketing,food_beverage,35000000,3,142000,3000,174,471.4,0.85
+"Ra mắt dịch vụ giao hàng drone nội thành",product_launch,logistics_technology,80000000,3,188000,1500,53,400.0,0.89

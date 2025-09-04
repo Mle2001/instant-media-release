@@ -1,0 +1,46 @@
+# ML-Enhanced Ranking System - Additional Requirements
+# Base ML dependencies (already in main requirements.txt)
+# torch>=2.0.0
+# transformers>=4.20.0
+# scikit-learn>=1.0.0
+# sentence-transformers>=2.2.0
+
+# Vietnamese language support
+transformers[torch]>=4.20.0
+tokenizers>=0.13.0
+
+# Model serving and optimization
+accelerate>=0.20.0
+safetensors>=0.3.0
+
+# Data processing and validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# API and enterprise integration
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+httpx>=0.24.0
+
+# Background tasks and scheduling  
+schedule>=1.2.0
+asyncio-mqtt>=0.13.0  # For async task management
+
+# Monitoring and logging
+loguru>=0.7.0
+prometheus-client>=0.16.0
+
+# Configuration and utilities
+PyYAML>=6.0
+python-dotenv>=1.0.0
+
+# Testing (development only)
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+# Database extensions for ML data
+sqlalchemy>=2.0.0
+alembic>=1.10.0  # For ML schema migrations

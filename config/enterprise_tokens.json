@@ -1,0 +1,29 @@
+{
+  "enterprise_tokens": {
+    "demo_enterprise_001": {
+      "token": "ent_demo_001_secure_token_here",
+      "company_name": "Demo Enterprise Co.",
+      "access_level": "full",
+      "rate_limit_per_hour": 1000,
+      "created_at": "2024-01-15T10:00:00Z",
+      "expires_at": "2025-01-15T10:00:00Z",
+      "active": true
+    },
+    "test_company_002": {
+      "token": "ent_test_002_secure_token_here", 
+      "company_name": "Test Company Ltd.",
+      "access_level": "limited",
+      "rate_limit_per_hour": 500,
+      "created_at": "2024-01-15T10:00:00Z",
+      "expires_at": "2024-07-15T10:00:00Z",
+      "active": true
+    }
+  },
+  "token_settings": {
+    "default_rate_limit": 100,
+    "max_rate_limit": 5000,
+    "token_length": 64,
+    "require_https": true,
+    "log_all_requests": true
+  }
+}

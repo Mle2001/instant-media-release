@@ -1,0 +1,221 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Enterprise Campaign Feedback Schema",
+  "description": "Schema for enterprise campaign feedback submission to ML system",
+  "type": "object",
+  "required": ["session_id", "campaign_id", "campaign_name", "start_date", "end_date", "media_results", "business_metrics"],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "Session ID from instant media release system",
+      "pattern": "^[a-zA-Z0-9-_]{8,64}$"
+    },
+    "campaign_id": {
+      "type": "string", 
+      "description": "Unique campaign identifier from enterprise side",
+      "pattern": "^[a-zA-Z0-9-_]{8,128}$"
+    },
+    "campaign_name": {
+      "type": "string",
+      "description": "Human-readable campaign name",
+      "minLength": 3,
+      "maxLength": 200
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Campaign start date in ISO format"
+    },
+    "end_date": {
+      "type": "string", 
+      "format": "date-time",
+      "description": "Campaign end date in ISO format"
+    },
+    "media_results": {
+      "type": "object",
+      "description": "Results from each contacted media outlet",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "required": ["article_published", "actual_reach"],
+          "properties": {
+            "article_published": {
+              "type": "boolean",
+              "description": "Whether article was actually published"
+            },
+            "publication_date": {
+              "type": ["string", "null"],
+              "format": "date",
+              "description": "Date of publication if published"
+            },
+            "article_url": {
+              "type": ["string", "null"],
+              "format": "uri",
+              "description": "URL to published article"
+            },
+            "actual_reach": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Actual audience reached"
+            },
+            "engagement_metrics": {
+              "type": "object",
+              "properties": {
+                "views": {"type": "integer", "minimum": 0},
+                "shares": {"type": "integer", "minimum": 0},
+                "comments": {"type": "integer", "minimum": 0},
+                "time_on_page": {"type": "number", "minimum": 0}
+              }
+            },
+            "editor_satisfaction": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 10,
+              "description": "Editor satisfaction score 1-10"
+            }
+          }
+        }
+      }
+    },
+    "business_metrics": {
+      "type": "object",
+      "required": ["revenue_generated", "leads_generated", "customers_acquired"],
+      "properties": {
+        "revenue_generated": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Revenue attributed to campaign (VND)"
+        },
+        "leads_generated": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of qualified leads generated"
+        },
+        "customers_acquired": {
+          "type": "integer", 
+          "minimum": 0,
+          "description": "Number of new customers acquired"
+        },
+        "website_traffic_increase": {
+          "type": "number",
+          "description": "Percentage increase in website traffic"
+        },
+        "brand_mentions_increase": {
+          "type": "number",
+          "description": "Percentage increase in brand mentions"
+        },
+        "search_volume_lift": {
+          "type": "number",
+          "description": "Percentage increase in search volume"
+        },
+        "social_media_followers_gained": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "cost_metrics": {
+      "type": "object",
+      "properties": {
+        "total_campaign_cost": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total campaign cost (VND)"
+        },
+        "media_spend": {
+          "type": "number", 
+          "minimum": 0,
+          "description": "Amount spent on media placements (VND)"
+        },
+        "operational_cost": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Internal operational costs (VND)"
+        },
+        "time_to_market_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Days from campaign start to first publication"
+        },
+        "resource_hours": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total human resource hours invested"
+        }
+      }
+    },
+    "audience_metrics": {
+      "type": "object",
+      "properties": {
+        "target_audience_accuracy": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Percentage of correct target audience reached"
+        },
+        "sentiment_scores": {
+          "type": "object",
+          "properties": {
+            "pre_campaign": {"type": "number", "minimum": 0, "maximum": 10},
+            "post_campaign": {"type": "number", "minimum": 0, "maximum": 10}
+          }
+        },
+        "demographic_breakdown": {
+          "type": "object",
+          "properties": {
+            "male_percentage": {"type": "number", "minimum": 0, "maximum": 1},
+            "female_percentage": {"type": "number", "minimum": 0, "maximum": 1},
+            "age_18_25": {"type": "number", "minimum": 0, "maximum": 1},
+            "age_26_35": {"type": "number", "minimum": 0, "maximum": 1},
+            "age_36_45": {"type": "number", "minimum": 0, "maximum": 1},
+            "age_46_plus": {"type": "number", "minimum": 0, "maximum": 1},
+            "north_vietnam": {"type": "number", "minimum": 0, "maximum": 1},
+            "central_vietnam": {"type": "number", "minimum": 0, "maximum": 1},
+            "south_vietnam": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        }
+      }
+    },
+    "qualitative_feedback": {
+      "type": "object",
+      "properties": {
+        "campaign_manager_notes": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Free-form notes from campaign manager"
+        },
+        "client_satisfaction_score": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Client satisfaction rating 1-10"
+        },
+        "lessons_learned": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Key lessons learned from campaign"
+        },
+        "improvement_suggestions": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Suggestions for system improvement"
+        },
+        "media_outlet_feedback": {
+          "type": "object",
+          "description": "Feedback from media outlets themselves",
+          "patternProperties": {
+            "^[a-zA-Z0-9_-]+$": {
+              "type": "object",
+              "properties": {
+                "editor_comments": {"type": "string", "maxLength": 500},
+                "content_quality_rating": {"type": "integer", "minimum": 1, "maximum": 10},
+                "future_collaboration_willingness": {"type": "boolean"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

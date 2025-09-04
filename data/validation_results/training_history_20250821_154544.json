@@ -1,0 +1,43 @@
+{
+  "training_history": {
+    "train_loss": [
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity
+    ],
+    "val_loss": [
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity,
+      Infinity
+    ],
+    "val_r2": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "model_path": "models\\media_ranking_lstm_v20250821_154544.pth",
+  "training_samples_count": 15,
+  "training_completed_at": "2025-08-21T15:45:46.196687"
+}
